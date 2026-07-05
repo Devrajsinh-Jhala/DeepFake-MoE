@@ -98,6 +98,53 @@ const expertPanels = [
   },
 ];
 
+const moeExperts = [
+  {
+    title: 'Generic Detector A',
+    detail: 'Broad AI-vs-real image classifier. Strong synthetic score is useful but never trusted alone.',
+    output: 'AI probability + label',
+    icon: Cpu,
+  },
+  {
+    title: 'Generic Detector B',
+    detail: 'Independent classifier with different calibration thresholds and lower reliability weight.',
+    output: 'Second opinion',
+    icon: BrainCircuit,
+  },
+  {
+    title: 'Generic Detector C',
+    detail: 'Distilled fake-image detector used to widen model diversity and catch generator artifacts.',
+    output: 'Tie-break signal',
+    icon: Gauge,
+  },
+  {
+    title: 'Portrait Specialist',
+    detail: 'Runs only after the portrait gate says the image is portrait-like enough.',
+    output: 'Portrait-only expert',
+    icon: ShieldAlert,
+  },
+  {
+    title: 'Forensic Expert',
+    detail: 'Noise, ELA, frequency, edge, and regional-map evidence that supports or challenges model scores.',
+    output: 'Non-model evidence',
+    icon: Layers3,
+  },
+  {
+    title: 'Provenance Expert',
+    detail: 'EXIF/XMP, C2PA status, generative markers, public URL context, and hashes.',
+    output: 'Source context',
+    icon: Database,
+  },
+];
+
+const moeRules = [
+  'Portrait specialist is skipped unless portrait likelihood clears the gate.',
+  'Each detector score is converted into a calibrated stance: AI, real, or inconclusive.',
+  'Reliability weights reduce overconfident or historically noisy models.',
+  'Real/human votes and detector disagreement can force an inconclusive result.',
+  'The safety arbiter only emits a strong verdict when enough independent evidence agrees.',
+];
+
 const deploymentControls = [
   {
     title: 'Ephemeral Storage',
@@ -511,6 +558,7 @@ function LandingPage() {
             for likely real, likely AI-generated, likely manipulated, or inconclusive.
           </p>
         </div>
+        <MoEFlowDiagram />
         <div className="expert-grid">
           {expertPanels.map((panel) => (
             <article className="expert-card" key={panel.title}>
@@ -590,6 +638,102 @@ function LandingPage() {
         </div>
       </section>
     </>
+  );
+}
+
+function MoEFlowDiagram() {
+  return (
+    <div className="moe-diagram" aria-label="Mixture of experts model architecture">
+      <div className="moe-scroll-hint">Scroll model diagram horizontally</div>
+      <div className="moe-canvas">
+        <svg className="moe-connectors" viewBox="0 0 1160 650" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <marker id="moeArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+              <path d="M0,0 L8,4.5 L0,9 Z" fill="#147a68" />
+            </marker>
+            <marker id="moeSoftArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+              <path d="M0,0 L8,4.5 L0,9 Z" fill="#d39b32" />
+            </marker>
+          </defs>
+          <path className="moe-main-line" d="M110 324 C190 324 226 324 292 324" markerEnd="url(#moeArrow)" />
+          <path className="moe-main-line" d="M852 324 C910 324 944 324 1006 324" markerEnd="url(#moeArrow)" />
+          <path className="moe-branch-line" d="M300 324 C350 128 445 94 540 94" markerEnd="url(#moeSoftArrow)" />
+          <path className="moe-branch-line" d="M300 324 C362 196 446 188 540 188" markerEnd="url(#moeSoftArrow)" />
+          <path className="moe-branch-line" d="M300 324 C372 286 446 282 540 282" markerEnd="url(#moeSoftArrow)" />
+          <path className="moe-branch-line" d="M300 324 C372 366 446 376 540 376" markerEnd="url(#moeSoftArrow)" />
+          <path className="moe-branch-line" d="M300 324 C362 464 446 470 540 470" markerEnd="url(#moeSoftArrow)" />
+          <path className="moe-branch-line" d="M300 324 C350 558 445 564 540 564" markerEnd="url(#moeSoftArrow)" />
+          <path className="moe-branch-line return" d="M706 94 C780 126 802 220 822 286" markerEnd="url(#moeArrow)" />
+          <path className="moe-branch-line return" d="M706 188 C772 206 804 248 822 298" markerEnd="url(#moeArrow)" />
+          <path className="moe-branch-line return" d="M706 282 C758 292 790 308 822 318" markerEnd="url(#moeArrow)" />
+          <path className="moe-branch-line return" d="M706 376 C758 360 790 342 822 330" markerEnd="url(#moeArrow)" />
+          <path className="moe-branch-line return" d="M706 470 C772 444 804 386 822 342" markerEnd="url(#moeArrow)" />
+          <path className="moe-branch-line return" d="M706 564 C780 512 802 410 822 354" markerEnd="url(#moeArrow)" />
+          <circle className="moe-packet" r="7">
+            <animateMotion dur="5.2s" repeatCount="indefinite" path="M110 324 C190 324 226 324 292 324" />
+          </circle>
+        </svg>
+
+        <div className="moe-stage moe-input">
+          <span>media packet</span>
+          <div className="moe-orb"><ImageUp size={26} /></div>
+          <h3>Preprocess</h3>
+          <p>Resize safely, inspect quality, compute hashes, and prepare detector inputs.</p>
+        </div>
+
+        <div className="moe-stage moe-gate">
+          <span>gate</span>
+          <div className="moe-orb"><Gauge size={26} /></div>
+          <h3>Routing Gate</h3>
+          <p>Checks portrait likelihood, input quality, model availability, and safe thresholds.</p>
+        </div>
+
+        <div className="moe-expert-stack">
+          {moeExperts.map((expert, index) => {
+            const ExpertIcon = expert.icon;
+            return (
+              <article className="moe-expert-node" style={{ '--index': index }} key={expert.title}>
+                <ExpertIcon size={18} />
+                <div>
+                  <h4>{expert.title}</h4>
+                  <p>{expert.detail}</p>
+                  <strong>{expert.output}</strong>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="moe-stage moe-calibration">
+          <span>calibration</span>
+          <div className="moe-orb"><BadgeCheck size={26} /></div>
+          <h3>Score Normalizer</h3>
+          <p>Converts raw labels into calibrated stances, applies reliability weights, and records disagreement.</p>
+        </div>
+
+        <div className="moe-stage moe-arbiter">
+          <span>arbiter</span>
+          <div className="moe-orb danger"><ShieldAlert size={26} /></div>
+          <h3>Safety Arbiter</h3>
+          <p>Combines weighted opinions with metadata and forensic counter-evidence before deciding.</p>
+        </div>
+
+        <div className="moe-verdict-stack">
+          <span className="real">likely real</span>
+          <span className="ai">likely AI generated</span>
+          <span className="manipulated">likely manipulated</span>
+          <span className="unknown">inconclusive</span>
+        </div>
+      </div>
+      <div className="moe-rule-grid">
+        {moeRules.map((rule) => (
+          <div className="moe-rule" key={rule}>
+            <CheckCircle2 size={16} />
+            <span>{rule}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
