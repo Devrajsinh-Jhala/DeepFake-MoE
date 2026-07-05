@@ -71,44 +71,6 @@ const architectureStages = [
   },
 ];
 
-const architectureFlow = [
-  {
-    step: '01',
-    title: 'Submit',
-    detail: 'Upload image or public URL with consent and privacy boundaries.',
-    output: 'Validated media packet',
-    icon: ImageUp,
-  },
-  {
-    step: '02',
-    title: 'Provenance',
-    detail: 'Extract EXIF/XMP, C2PA status, hashes, and public source context.',
-    output: 'Source evidence',
-    icon: Database,
-  },
-  {
-    step: '03',
-    title: 'Forensics',
-    detail: 'Decompose luminance, chroma, edges, noise, frequency, and regions.',
-    output: 'Layer anomaly map',
-    icon: Layers3,
-  },
-  {
-    step: '04',
-    title: 'Experts',
-    detail: 'Run calibrated detectors and specialist opinions with disagreement tracking.',
-    output: 'Weighted opinions',
-    icon: BrainCircuit,
-  },
-  {
-    step: '05',
-    title: 'Arbiter',
-    detail: 'Apply confidence gates, false-positive controls, and abstention rules.',
-    output: 'Verdict and report',
-    icon: ShieldCheck,
-  },
-];
-
 const expertPanels = [
   {
     title: 'Visual Ensemble',
@@ -632,31 +594,109 @@ function LandingPage() {
 }
 
 function ArchitectureFlowchart() {
+  const sideLayers = [
+    ['Metadata', 'EXIF/XMP, software markers, GPS exposure', Database],
+    ['C2PA', 'Content credentials and provenance claims', BadgeCheck],
+    ['Forensics', 'ELA, noise, frequency, regional tile map', Layers3],
+    ['Detector Panel', 'Generic models plus gated specialists', BrainCircuit],
+  ];
   return (
-    <div className="architecture-flowchart" aria-label="Deepfake analysis architecture flow">
-      <div className="flow-orbit flow-orbit-one" />
-      <div className="flow-orbit flow-orbit-two" />
-      <div className="flow-nodes">
-        {architectureFlow.map((stage, index) => {
-          const FlowIcon = stage.icon;
-          return (
-            <article className="flow-node" style={{ '--index': index }} key={stage.step}>
-              <span className="flow-step">{stage.step}</span>
-              <div className="flow-icon">
-                <FlowIcon size={22} />
-              </div>
-              <h3>{stage.title}</h3>
-              <p>{stage.detail}</p>
-              <strong>{stage.output}</strong>
-            </article>
-          );
-        })}
-      </div>
-      <div className="flow-caption">
-        <span>Evidence packet</span>
-        <span>Layer analysis</span>
-        <span>Model opinions</span>
-        <span>Safety decision</span>
+    <div className="architecture-map" aria-label="Deepfake analysis architecture flow">
+      <div className="map-scroll-hint">Scroll diagram horizontally</div>
+      <div className="map-canvas">
+        <svg className="map-connectors" viewBox="0 0 1120 520" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <marker id="flowArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+              <path d="M0,0 L8,4.5 L0,9 Z" fill="#147a68" />
+            </marker>
+            <marker id="softArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+              <path d="M0,0 L8,4.5 L0,9 Z" fill="#d39b32" />
+            </marker>
+          </defs>
+          <path className="main-flow-line" d="M118 260 C210 260 240 260 314 260 S444 260 520 260 S660 260 740 260 S890 260 990 260" markerEnd="url(#flowArrow)" />
+          <path className="branch-line" d="M346 260 C370 168 454 132 560 132" markerEnd="url(#softArrow)" />
+          <path className="branch-line" d="M346 260 C386 352 468 392 590 392" markerEnd="url(#softArrow)" />
+          <path className="branch-line" d="M594 132 C650 132 684 174 708 218" markerEnd="url(#softArrow)" />
+          <path className="branch-line" d="M624 392 C684 376 708 330 724 292" markerEnd="url(#softArrow)" />
+          <circle className="moving-packet" r="8">
+            <animateMotion dur="5.8s" repeatCount="indefinite" path="M118 260 C210 260 240 260 314 260 S444 260 520 260 S660 260 740 260 S890 260 990 260" />
+          </circle>
+        </svg>
+
+        <div className="diagram-node node-submit">
+          <span className="node-index">01</span>
+          <div className="node-orb"><ImageUp size={26} /></div>
+          <h3>Submit</h3>
+          <p>Upload or public URL enters the consent and safety boundary.</p>
+        </div>
+
+        <div className="diagram-node node-boundary">
+          <span className="node-index">02</span>
+          <div className="node-orb"><Lock size={26} /></div>
+          <h3>Input Boundary</h3>
+          <p>File validation, SSRF protection, encrypted temp storage, TTL.</p>
+        </div>
+
+        <div className="diagram-hub node-bus">
+          <div className="hub-ring">
+            <Layers3 size={30} />
+          </div>
+          <h3>Evidence Bus</h3>
+          <p>One media packet fans out into independent evidence lanes.</p>
+        </div>
+
+        <div className="diagram-node node-arbiter">
+          <span className="node-index">04</span>
+          <div className="node-orb warning"><ShieldAlert size={26} /></div>
+          <h3>Safety Arbiter</h3>
+          <p>Weights opinions, caps confidence, and abstains when evidence is weak.</p>
+        </div>
+
+        <div className="diagram-node node-report">
+          <span className="node-index">05</span>
+          <div className="node-orb report-orb"><FileText size={26} /></div>
+          <h3>Report</h3>
+          <p>Victim summary plus JSON/PDF technical appendix.</p>
+        </div>
+
+        <div className="layer-cluster top-cluster">
+          <span className="cluster-label">Provenance lane</span>
+          {sideLayers.slice(0, 2).map(([title, detail, icon]) => {
+            const LayerIcon = icon;
+            return (
+              <article className="layer-chip" key={title}>
+                <LayerIcon size={18} />
+                <div>
+                  <strong>{title}</strong>
+                  <span>{detail}</span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="layer-cluster bottom-cluster">
+          <span className="cluster-label">Analysis lane</span>
+          {sideLayers.slice(2).map(([title, detail, icon]) => {
+            const LayerIcon = icon;
+            return (
+              <article className="layer-chip" key={title}>
+                <LayerIcon size={18} />
+                <div>
+                  <strong>{title}</strong>
+                  <span>{detail}</span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="decision-stack">
+          <span>likely real</span>
+          <span>likely AI generated</span>
+          <span>likely manipulated</span>
+          <span>inconclusive</span>
+        </div>
       </div>
     </div>
   );
