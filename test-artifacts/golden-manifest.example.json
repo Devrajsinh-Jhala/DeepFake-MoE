@@ -1,0 +1,14 @@
+{
+  "samples": [
+    {
+      "name": "generated_bookstore_control",
+      "path": "generated-bookstore-test.png",
+      "expected": "ai_generated"
+    },
+    {
+      "name": "natural_tiger_control",
+      "path": "natural-photo-control-tiger.jpg",
+      "expected": "real"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "passed": true,
+  "gates": {
+    "max_real_false_positive_rate": 0.0,
+    "min_ai_recall": 0.5,
+    "max_high_confidence_error_rate": 0.0
+  },
+  "metrics": {
+    "ai_recall": 1.0,
+    "real_false_positive_rate": 0.0,
+    "real_safety_rate": 1.0,
+    "high_confidence_error_rate": 0.0,
+    "coverage_likely_ai_on_ai": 1.0
+  },
+  "counts": {
+    "total": 2,
+    "expected_ai": 1,
+    "expected_real": 1,
+    "ai_true_positive": 1,
+    "ai_false_negative_or_abstain": 0,
+    "real_true_negative_or_abstain": 1,
+    "real_false_positive": 0,
+    "high_confidence_errors": 0
+  },
+  "samples": [
+    {
+      "name": "generated_bookstore_control",
+      "expected": "ai",
+      "verdict": "likely_ai_generated",
+      "confidence": "medium",
+      "ai_probability": 0.7853,
+      "correct_for_gate": true
+    },
+    {
+      "name": "natural_tiger_control",
+      "expected": "real",
+      "verdict": "inconclusive",
+      "confidence": "low",
+      "ai_probability": 0.3411,
+      "correct_for_gate": true
+    }
+  ]
+}

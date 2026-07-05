@@ -1,0 +1,80 @@
+services:
+  web:
+    image: aida-app:latest
+    build:
+      context: .
+      args:
+        INSTALL_ML: "true"
+        VITE_REQUIRE_ACCESS_TOKEN: "false"
+    env_file:
+      - .env.production
+    environment:
+      AIDA_DEPLOYMENT_MODE: production
+      AIDA_DATABASE_URL: postgresql+psycopg://aida:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/aida
+      AIDA_REDIS_URL: redis://redis:6379/0
+      AIDA_USE_RQ: "true"
+      AIDA_DATA_DIR: /data
+      HF_HOME: /data/huggingface
+    ports:
+      - "8000:8000"
+    volumes:
+      - aida-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  worker:
+    image: aida-app:latest
+    build:
+      context: .
+      args:
+        INSTALL_ML: "true"
+        VITE_REQUIRE_ACCESS_TOKEN: "false"
+    command: ["python", "-m", "app.worker"]
+    env_file:
+      - .env.production
+    environment:
+      AIDA_DEPLOYMENT_MODE: production
+      AIDA_DATABASE_URL: postgresql+psycopg://aida:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/aida
+      AIDA_REDIS_URL: redis://redis:6379/0
+      AIDA_USE_RQ: "true"
+      AIDA_DATA_DIR: /data
+      HF_HOME: /data/huggingface
+    volumes:
+      - aida-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: aida
+      POSTGRES_USER: aida
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aida -d aida"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  aida-data:
+  postgres-data:
+  redis-data:

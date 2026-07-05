@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Deepfake Analyzer</title>
+  </head>
+  <body>
+    <div id="root">
+      <main class="shell" id="initial-shell">
+        <section class="workspace">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">Privacy-first authenticity analysis</p>
+              <h1>AI Deepfake Analyzer</h1>
+            </div>
+            <div class="status-pill">Ephemeral media</div>
+          </header>
+          <div class="grid">
+            <section class="panel input-panel">
+              <div class="drop-empty">
+                <span>Loading analyzer...</span>
+              </div>
+            </section>
+            <section class="panel result-panel">
+              <div class="empty">
+                <h2>Ready</h2>
+                <p>If this message stays visible, refresh the page once.</p>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="/fallback.js" defer></script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
