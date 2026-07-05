@@ -39,32 +39,151 @@ const verdictCopy = {
 };
 
 const architectureStages = [
-  { title: 'Input Boundary', detail: 'Upload or public URL, consent gate, type limits, SSRF protection, encrypted temporary media.', icon: Lock },
-  { title: 'Evidence Layers', detail: 'EXIF/XMP, C2PA, hashes, compression, noise, frequency, and regional anomaly maps.', icon: Layers3 },
-  { title: 'Mixture Of Experts', detail: 'Generic detectors, portrait-gated specialist, provenance expert, and forensic residual expert.', icon: BrainCircuit },
-  { title: 'Safety Arbiter', detail: 'Reliability weighting, disagreement handling, confidence caps, and abstention before accusation.', icon: ShieldAlert },
-  { title: 'Report Export', detail: 'Victim-friendly summary, JSON/PDF appendix, reproducibility notes, and early deletion.', icon: FileText },
+  {
+    title: 'Input Boundary',
+    detail: 'Upload or public URL, consent gate, type limits, SSRF protection, encrypted temporary media.',
+    checks: ['Consent and file validation', 'Public URL fetch restrictions', 'TTL cleanup policy'],
+    icon: Lock,
+  },
+  {
+    title: 'Evidence Layers',
+    detail: 'EXIF/XMP, C2PA, hashes, compression, noise, frequency, and regional anomaly maps.',
+    checks: ['Metadata and provenance', 'Pixel/residual decomposition', '4x4 regional evidence map'],
+    icon: Layers3,
+  },
+  {
+    title: 'Mixture Of Experts',
+    detail: 'Generic detectors, portrait-gated specialist, provenance expert, and forensic residual expert.',
+    checks: ['Reliability-weighted detector votes', 'Portrait gate before specialist model', 'Disagreement tracking'],
+    icon: BrainCircuit,
+  },
+  {
+    title: 'Safety Arbiter',
+    detail: 'Reliability weighting, disagreement handling, confidence caps, and abstention before accusation.',
+    checks: ['False-positive controls', 'Low-quality confidence caps', 'Inconclusive when evidence is weak'],
+    icon: ShieldAlert,
+  },
+  {
+    title: 'Report Export',
+    detail: 'Victim-friendly summary, JSON/PDF appendix, reproducibility notes, and early deletion.',
+    checks: ['Plain-language decision summary', 'Technical appendix', 'Delete analysis endpoint'],
+    icon: FileText,
+  },
+];
+
+const architectureFlow = [
+  {
+    step: '01',
+    title: 'Submit',
+    detail: 'Upload image or public URL with consent and privacy boundaries.',
+    output: 'Validated media packet',
+    icon: ImageUp,
+  },
+  {
+    step: '02',
+    title: 'Provenance',
+    detail: 'Extract EXIF/XMP, C2PA status, hashes, and public source context.',
+    output: 'Source evidence',
+    icon: Database,
+  },
+  {
+    step: '03',
+    title: 'Forensics',
+    detail: 'Decompose luminance, chroma, edges, noise, frequency, and regions.',
+    output: 'Layer anomaly map',
+    icon: Layers3,
+  },
+  {
+    step: '04',
+    title: 'Experts',
+    detail: 'Run calibrated detectors and specialist opinions with disagreement tracking.',
+    output: 'Weighted opinions',
+    icon: BrainCircuit,
+  },
+  {
+    step: '05',
+    title: 'Arbiter',
+    detail: 'Apply confidence gates, false-positive controls, and abstention rules.',
+    output: 'Verdict and report',
+    icon: ShieldCheck,
+  },
 ];
 
 const expertPanels = [
-  ['Visual Ensemble', 'Three generic AI-image detectors with reliability-weighted votes.'],
-  ['Portrait Specialist', 'Runs only after a portrait-likelihood gate to reduce real portrait false positives.'],
-  ['Forensic Residuals', 'Compression, ELA, noise, frequency, and regional tile consistency checks.'],
-  ['Provenance', 'Metadata markers, C2PA status, public-source context, and perceptual hashes.'],
+  {
+    title: 'Visual Ensemble',
+    detail: 'Three generic AI-image detectors produce calibrated votes instead of a single raw score.',
+    signals: ['AI/real vote count', 'Weighted average', 'Model disagreement'],
+    guardrail: 'Real/human votes and high disagreement force caution.',
+  },
+  {
+    title: 'Portrait Specialist',
+    detail: 'A specialist detector is used only when the image looks like a portrait.',
+    signals: ['Portrait likelihood', 'Central/side skin-tone ratio', 'Specialist skip reason'],
+    guardrail: 'Prevents portrait-only models from judging unrelated images.',
+  },
+  {
+    title: 'Forensic Residuals',
+    detail: 'Image layers are decomposed into compression, noise, edge, frequency, and tile-level evidence.',
+    signals: ['ELA score', 'Noise inconsistency', 'Regional anomaly severity'],
+    guardrail: 'Forensics are weak supporting signals, never final proof alone.',
+  },
+  {
+    title: 'Provenance',
+    detail: 'Metadata and content credentials are checked before pixel-based conclusions are trusted.',
+    signals: ['EXIF/XMP fields', 'C2PA status', 'SHA/perceptual hashes'],
+    guardrail: 'Missing metadata is treated as neutral, not proof of AI generation.',
+  },
 ];
 
 const deploymentControls = [
-  ['Ephemeral Storage', 'Encrypted temp media, short TTLs, early delete endpoint, no raw media returned.'],
-  ['Public Safety', 'No face search, no doxxing, no login scraping, no private identity inference.'],
-  ['Production Guardrails', 'PostgreSQL, Redis/RQ, rate limits, audit hashing, readiness checks, security headers.'],
-  ['Calibration Gate', 'Golden-set benchmark blocks launch when false positives or high-confidence errors fail gates.'],
+  {
+    title: 'Ephemeral Storage',
+    detail: 'Encrypted temp media, short TTLs, early delete endpoint, no raw media returned.',
+    checks: ['24-hour default expiry', 'No media in logs', 'User-triggered deletion'],
+  },
+  {
+    title: 'Public Safety',
+    detail: 'No face search, no doxxing, no login scraping, no private identity inference.',
+    checks: ['Public links only', 'No identity attribution', 'Sensitive-preview blur'],
+  },
+  {
+    title: 'Production Guardrails',
+    detail: 'PostgreSQL, Redis/RQ, rate limits, audit hashing, readiness checks, security headers.',
+    checks: ['Background workers', 'Health/ready endpoints', 'Per-IP rate limiting'],
+  },
+  {
+    title: 'Calibration Gate',
+    detail: 'Golden-set benchmark blocks launch when false positives or high-confidence errors fail gates.',
+    checks: ['Real-photo controls', 'AI-image controls', 'Inconclusive threshold review'],
+  },
 ];
 
 const reportFeatures = [
-  ['Victim Summary', 'Plain-language verdict, confidence band, strongest evidence, and practical next steps.', FileText],
-  ['Evidence Ledger', 'Layer-by-layer metadata, provenance, forensic, model, and uncertainty findings.', Layers3],
-  ['Expert Opinions', 'Visual ensemble, portrait specialist, forensic residuals, provenance, and safety arbiter votes.', BrainCircuit],
-  ['Technical Export', 'JSON and PDF downloads with hashes, detector scores, regional map, and reproducibility notes.', Download],
+  {
+    title: 'Victim Summary',
+    detail: 'Plain-language verdict, confidence band, strongest evidence, and practical next steps.',
+    includes: ['Verdict and confidence', 'Strongest evidence', 'Limitations and next steps'],
+    icon: FileText,
+  },
+  {
+    title: 'Evidence Ledger',
+    detail: 'Layer-by-layer metadata, provenance, forensic, model, and uncertainty findings.',
+    includes: ['Layer conclusion', 'AI/manipulation signal', 'Method and limitations'],
+    icon: Layers3,
+  },
+  {
+    title: 'Expert Opinions',
+    detail: 'Visual ensemble, portrait specialist, forensic residuals, provenance, and safety arbiter votes.',
+    includes: ['Opinion stance', 'Confidence level', 'Supporting/counter evidence'],
+    icon: BrainCircuit,
+  },
+  {
+    title: 'Technical Export',
+    detail: 'JSON and PDF downloads with hashes, detector scores, regional map, and reproducibility notes.',
+    includes: ['SHA/perceptual hashes', 'Detector scores', 'Reproducibility notes'],
+    icon: Download,
+  },
 ];
 
 const heroHighlights = [
@@ -401,6 +520,7 @@ function LandingPage() {
           <p className="eyebrow">Layered pipeline</p>
           <h2>Evidence moves through separate, explainable stages before the final verdict.</h2>
         </div>
+        <ArchitectureFlowchart />
         <div className="pipeline-grid">
           {architectureStages.map((stage, index) => {
             const Icon = stage.icon;
@@ -409,6 +529,11 @@ function LandingPage() {
                 <Icon size={22} />
                 <h3>{stage.title}</h3>
                 <p>{stage.detail}</p>
+                <ul>
+                  {stage.checks.map((check) => (
+                    <li key={check}>{check}</li>
+                  ))}
+                </ul>
               </article>
             );
           })}
@@ -425,11 +550,17 @@ function LandingPage() {
           </p>
         </div>
         <div className="expert-grid">
-          {expertPanels.map(([title, detail]) => (
-            <article className="expert-card" key={title}>
+          {expertPanels.map((panel) => (
+            <article className="expert-card" key={panel.title}>
               <BrainCircuit size={21} />
-              <h3>{title}</h3>
-              <p>{detail}</p>
+              <h3>{panel.title}</h3>
+              <p>{panel.detail}</p>
+              <div className="detail-tags">
+                {panel.signals.map((signal) => (
+                  <span key={signal}>{signal}</span>
+                ))}
+              </div>
+              <strong>{panel.guardrail}</strong>
             </article>
           ))}
         </div>
@@ -447,14 +578,19 @@ function LandingPage() {
               </p>
             </div>
             <div className="report-feature-grid">
-              {reportFeatures.map(([title, detail, icon]) => {
-                const FeatureIcon = icon;
+              {reportFeatures.map((feature) => {
+                const FeatureIcon = feature.icon;
                 return (
-                  <article className="report-feature" key={title}>
+                  <article className="report-feature" key={feature.title}>
                     <FeatureIcon size={20} />
                     <div>
-                      <h3>{title}</h3>
-                      <p>{detail}</p>
+                      <h3>{feature.title}</h3>
+                      <p>{feature.detail}</p>
+                      <ul>
+                        {feature.includes.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
                     </div>
                   </article>
                 );
@@ -475,18 +611,54 @@ function LandingPage() {
           <h2>Built for sensitive-media handling, not casual image guessing.</h2>
         </div>
         <div className="deployment-grid">
-          {deploymentControls.map(([title, detail]) => (
-            <article className="deployment-item" key={title}>
+          {deploymentControls.map((control) => (
+            <article className="deployment-item" key={control.title}>
               <CheckCircle2 size={20} />
               <div>
-                <h3>{title}</h3>
-                <p>{detail}</p>
+                <h3>{control.title}</h3>
+                <p>{control.detail}</p>
+                <ul>
+                  {control.checks.map((check) => (
+                    <li key={check}>{check}</li>
+                  ))}
+                </ul>
               </div>
             </article>
           ))}
         </div>
       </section>
     </>
+  );
+}
+
+function ArchitectureFlowchart() {
+  return (
+    <div className="architecture-flowchart" aria-label="Deepfake analysis architecture flow">
+      <div className="flow-orbit flow-orbit-one" />
+      <div className="flow-orbit flow-orbit-two" />
+      <div className="flow-nodes">
+        {architectureFlow.map((stage, index) => {
+          const FlowIcon = stage.icon;
+          return (
+            <article className="flow-node" style={{ '--index': index }} key={stage.step}>
+              <span className="flow-step">{stage.step}</span>
+              <div className="flow-icon">
+                <FlowIcon size={22} />
+              </div>
+              <h3>{stage.title}</h3>
+              <p>{stage.detail}</p>
+              <strong>{stage.output}</strong>
+            </article>
+          );
+        })}
+      </div>
+      <div className="flow-caption">
+        <span>Evidence packet</span>
+        <span>Layer analysis</span>
+        <span>Model opinions</span>
+        <span>Safety decision</span>
+      </div>
+    </div>
   );
 }
 

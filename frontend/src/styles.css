@@ -521,6 +521,7 @@ button {
 }
 
 .section-head,
+.architecture-flowchart,
 .pipeline-grid,
 .expert-grid,
 .deployment-grid {
@@ -548,6 +549,173 @@ button {
 .deployment-band .section-head p,
 .deployment-band .section-head h2 {
   color: #eef6f4;
+}
+
+.architecture-flowchart {
+  position: relative;
+  min-height: 350px;
+  margin-bottom: 22px;
+  padding: 20px;
+  overflow: hidden;
+  border: 1px solid #d1dde8;
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(19, 117, 104, 0.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(19, 117, 104, 0.08) 1px, transparent 1px),
+    #f8fbfc;
+  background-size: 34px 34px;
+  box-shadow: 0 18px 48px rgba(37, 50, 69, 0.08);
+}
+
+.architecture-flowchart::before {
+  content: "";
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  top: 128px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #147a68, #f0c65e, #8b2f41, #147a68);
+  opacity: 0.72;
+}
+
+.architecture-flowchart::after {
+  content: "";
+  position: absolute;
+  top: 122px;
+  left: 8%;
+  width: 46px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(20, 122, 104, 0.24);
+  box-shadow: 0 0 26px rgba(20, 122, 104, 0.38);
+  animation: flowPacket 5.2s ease-in-out infinite;
+}
+
+.flow-orbit {
+  position: absolute;
+  border: 1px solid rgba(19, 117, 104, 0.18);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.flow-orbit-one {
+  width: 360px;
+  height: 360px;
+  right: -110px;
+  top: -160px;
+}
+
+.flow-orbit-two {
+  width: 240px;
+  height: 240px;
+  left: -90px;
+  bottom: -120px;
+}
+
+.flow-nodes {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.flow-node {
+  position: relative;
+  display: grid;
+  align-content: start;
+  min-height: 244px;
+  padding: 16px;
+  border: 1px solid #d3dde8;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 34px rgba(37, 50, 69, 0.07);
+  animation: cardRise 0.65s ease both;
+  animation-delay: calc(var(--index) * 90ms);
+}
+
+.flow-node::after {
+  content: "";
+  position: absolute;
+  right: -16px;
+  top: 98px;
+  width: 20px;
+  height: 20px;
+  border-top: 3px solid #147a68;
+  border-right: 3px solid #147a68;
+  transform: rotate(45deg);
+}
+
+.flow-node:last-child::after {
+  display: none;
+}
+
+.flow-step {
+  width: fit-content;
+  min-height: 26px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #e5f4f1;
+  color: #147a68;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.flow-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: 14px 0 12px;
+  border: 1px solid #c7e0da;
+  border-radius: 8px;
+  background: #f0fdfa;
+  color: #147a68;
+}
+
+.flow-node h3 {
+  margin-bottom: 8px;
+  font-size: 1.08rem;
+}
+
+.flow-node p {
+  margin-bottom: 12px;
+  color: #526175;
+  line-height: 1.42;
+}
+
+.flow-node strong {
+  display: block;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+  color: #172033;
+  font-size: 0.86rem;
+}
+
+.flow-caption {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.flow-caption span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #d4dde8;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #435266;
+  font-size: 0.84rem;
+  font-weight: 850;
+  text-align: center;
 }
 
 .pipeline-grid {
@@ -593,6 +761,22 @@ button {
   line-height: 1.45;
 }
 
+.pipeline-card ul,
+.report-feature ul,
+.deployment-item ul {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: #435266;
+  line-height: 1.4;
+  font-size: 0.88rem;
+}
+
+.pipeline-card li + li,
+.report-feature li + li,
+.deployment-item li + li {
+  margin-top: 4px;
+}
+
 .expert-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -602,6 +786,36 @@ button {
 .expert-card {
   min-height: 176px;
   padding: 18px;
+}
+
+.expert-card > strong {
+  display: block;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid #dbe4ee;
+  color: #173528;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.detail-tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid #cfe1dd;
+  border-radius: 999px;
+  background: #f1faf8;
+  color: #166b5e;
+  font-size: 0.76rem;
+  font-weight: 850;
 }
 
 .reports-band {
@@ -870,6 +1084,10 @@ button {
 
 .deployment-item p {
   color: #c8d5df;
+}
+
+.deployment-item ul {
+  color: #dce7f3;
 }
 
 .shell {
@@ -1555,6 +1773,23 @@ code {
   }
 }
 
+@keyframes flowPacket {
+  0% {
+    left: 8%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(92% - 46px);
+    opacity: 0;
+  }
+}
+
 @keyframes cardRise {
   from {
     opacity: 0;
@@ -1578,6 +1813,20 @@ code {
 
   .telemetry-strip {
     bottom: 22px;
+  }
+
+  .flow-nodes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .architecture-flowchart::before,
+  .architecture-flowchart::after,
+  .flow-node::after {
+    display: none;
+  }
+
+  .flow-caption {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .pipeline-grid {
@@ -1692,6 +1941,20 @@ code {
   .report-feature-grid,
   .deployment-grid {
     grid-template-columns: 1fr;
+  }
+
+  .architecture-flowchart {
+    min-height: auto;
+    padding: 14px;
+  }
+
+  .flow-nodes,
+  .flow-caption {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-node {
+    min-height: auto;
   }
 
   .reports-layout {
