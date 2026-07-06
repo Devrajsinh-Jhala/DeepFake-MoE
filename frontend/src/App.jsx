@@ -644,51 +644,30 @@ function LandingPage() {
 function MoEFlowDiagram() {
   return (
     <div className="moe-diagram" aria-label="Mixture of experts model architecture">
-      <div className="moe-scroll-hint">Scroll model diagram horizontally</div>
-      <div className="moe-canvas">
-        <svg className="moe-connectors" viewBox="0 0 1160 650" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <marker id="moeArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
-              <path d="M0,0 L8,4.5 L0,9 Z" fill="#147a68" />
-            </marker>
-            <marker id="moeSoftArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
-              <path d="M0,0 L8,4.5 L0,9 Z" fill="#d39b32" />
-            </marker>
-          </defs>
-          <path className="moe-main-line" d="M110 324 C190 324 226 324 292 324" markerEnd="url(#moeArrow)" />
-          <path className="moe-main-line" d="M852 324 C910 324 944 324 1006 324" markerEnd="url(#moeArrow)" />
-          <path className="moe-branch-line" d="M300 324 C350 128 445 94 540 94" markerEnd="url(#moeSoftArrow)" />
-          <path className="moe-branch-line" d="M300 324 C362 196 446 188 540 188" markerEnd="url(#moeSoftArrow)" />
-          <path className="moe-branch-line" d="M300 324 C372 286 446 282 540 282" markerEnd="url(#moeSoftArrow)" />
-          <path className="moe-branch-line" d="M300 324 C372 366 446 376 540 376" markerEnd="url(#moeSoftArrow)" />
-          <path className="moe-branch-line" d="M300 324 C362 464 446 470 540 470" markerEnd="url(#moeSoftArrow)" />
-          <path className="moe-branch-line" d="M300 324 C350 558 445 564 540 564" markerEnd="url(#moeSoftArrow)" />
-          <path className="moe-branch-line return" d="M706 94 C780 126 802 220 822 286" markerEnd="url(#moeArrow)" />
-          <path className="moe-branch-line return" d="M706 188 C772 206 804 248 822 298" markerEnd="url(#moeArrow)" />
-          <path className="moe-branch-line return" d="M706 282 C758 292 790 308 822 318" markerEnd="url(#moeArrow)" />
-          <path className="moe-branch-line return" d="M706 376 C758 360 790 342 822 330" markerEnd="url(#moeArrow)" />
-          <path className="moe-branch-line return" d="M706 470 C772 444 804 386 822 342" markerEnd="url(#moeArrow)" />
-          <path className="moe-branch-line return" d="M706 564 C780 512 802 410 822 354" markerEnd="url(#moeArrow)" />
-          <circle className="moe-packet" r="7">
-            <animateMotion dur="5.2s" repeatCount="indefinite" path="M110 324 C190 324 226 324 292 324" />
-          </circle>
-        </svg>
-
-        <div className="moe-stage moe-input">
-          <span>media packet</span>
-          <div className="moe-orb"><ImageUp size={26} /></div>
+      <div className="moe-flow-shell">
+        <div className="moe-stage-card">
+          <span>01</span>
+          <ImageUp size={24} />
           <h3>Preprocess</h3>
-          <p>Resize safely, inspect quality, compute hashes, and prepare detector inputs.</p>
+          <p>Resize safely, inspect quality, compute hashes, and prepare model-ready inputs.</p>
         </div>
 
-        <div className="moe-stage moe-gate">
-          <span>gate</span>
-          <div className="moe-orb"><Gauge size={26} /></div>
+        <div className="moe-stage-card">
+          <span>02</span>
+          <Gauge size={24} />
           <h3>Routing Gate</h3>
           <p>Checks portrait likelihood, input quality, model availability, and safe thresholds.</p>
         </div>
 
-        <div className="moe-expert-stack">
+        <section className="moe-expert-panel" aria-label="Expert detector panel">
+          <div className="moe-panel-head">
+            <span>03</span>
+            <div>
+              <h3>Expert Panel</h3>
+              <p>Parallel opinions fan out, then return as calibrated evidence.</p>
+            </div>
+          </div>
+          <div className="moe-expert-stack">
           {moeExperts.map((expert, index) => {
             const ExpertIcon = expert.icon;
             return (
@@ -702,18 +681,19 @@ function MoEFlowDiagram() {
               </article>
             );
           })}
-        </div>
+          </div>
+        </section>
 
-        <div className="moe-stage moe-calibration">
-          <span>calibration</span>
-          <div className="moe-orb"><BadgeCheck size={26} /></div>
+        <div className="moe-stage-card">
+          <span>04</span>
+          <BadgeCheck size={24} />
           <h3>Score Normalizer</h3>
-          <p>Converts raw labels into calibrated stances, applies reliability weights, and records disagreement.</p>
+          <p>Converts raw labels into calibrated stances, weights reliability, and records disagreement.</p>
         </div>
 
-        <div className="moe-stage moe-arbiter">
-          <span>arbiter</span>
-          <div className="moe-orb danger"><ShieldAlert size={26} /></div>
+        <div className="moe-stage-card danger">
+          <span>05</span>
+          <ShieldAlert size={24} />
           <h3>Safety Arbiter</h3>
           <p>Combines weighted opinions with metadata and forensic counter-evidence before deciding.</p>
         </div>
@@ -744,66 +724,32 @@ function ArchitectureFlowchart() {
     ['Forensics', 'ELA, noise, frequency, regional tile map', Layers3],
     ['Detector Panel', 'Generic models plus gated specialists', BrainCircuit],
   ];
+  const flowSteps = [
+    ['01', 'Submit', 'Upload or public URL enters the consent and safety boundary.', ImageUp],
+    ['02', 'Input Boundary', 'Validate file type, block unsafe URLs, encrypt temporary media, enforce TTL.', Lock],
+    ['03', 'Evidence Bus', 'Split one media packet into independent provenance, forensic, and model lanes.', Layers3],
+    ['04', 'Safety Arbiter', 'Weight opinions, cap confidence, and abstain when evidence is weak.', ShieldAlert],
+    ['05', 'Report', 'Create a victim summary plus JSON/PDF technical appendix.', FileText],
+  ];
+
   return (
     <div className="architecture-map" aria-label="Deepfake analysis architecture flow">
-      <div className="map-scroll-hint">Scroll diagram horizontally</div>
-      <div className="map-canvas">
-        <svg className="map-connectors" viewBox="0 0 1120 520" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <marker id="flowArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
-              <path d="M0,0 L8,4.5 L0,9 Z" fill="#147a68" />
-            </marker>
-            <marker id="softArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
-              <path d="M0,0 L8,4.5 L0,9 Z" fill="#d39b32" />
-            </marker>
-          </defs>
-          <path className="main-flow-line" d="M118 260 C210 260 240 260 314 260 S444 260 520 260 S660 260 740 260 S890 260 990 260" markerEnd="url(#flowArrow)" />
-          <path className="branch-line" d="M346 260 C370 168 454 132 560 132" markerEnd="url(#softArrow)" />
-          <path className="branch-line" d="M346 260 C386 352 468 392 590 392" markerEnd="url(#softArrow)" />
-          <path className="branch-line" d="M594 132 C650 132 684 174 708 218" markerEnd="url(#softArrow)" />
-          <path className="branch-line" d="M624 392 C684 376 708 330 724 292" markerEnd="url(#softArrow)" />
-          <circle className="moving-packet" r="8">
-            <animateMotion dur="5.8s" repeatCount="indefinite" path="M118 260 C210 260 240 260 314 260 S444 260 520 260 S660 260 740 260 S890 260 990 260" />
-          </circle>
-        </svg>
+      <div className="architecture-flow-grid">
+        {flowSteps.map(([index, title, detail, icon]) => {
+          const StepIcon = icon;
+          return (
+            <article className={`flow-step ${title === 'Evidence Bus' ? 'hub-step' : ''}`} key={title}>
+              <span className="node-index">{index}</span>
+              <div className="node-orb"><StepIcon size={24} /></div>
+              <h3>{title}</h3>
+              <p>{detail}</p>
+            </article>
+          );
+        })}
+      </div>
 
-        <div className="diagram-node node-submit">
-          <span className="node-index">01</span>
-          <div className="node-orb"><ImageUp size={26} /></div>
-          <h3>Submit</h3>
-          <p>Upload or public URL enters the consent and safety boundary.</p>
-        </div>
-
-        <div className="diagram-node node-boundary">
-          <span className="node-index">02</span>
-          <div className="node-orb"><Lock size={26} /></div>
-          <h3>Input Boundary</h3>
-          <p>File validation, SSRF protection, encrypted temp storage, TTL.</p>
-        </div>
-
-        <div className="diagram-hub node-bus">
-          <div className="hub-ring">
-            <Layers3 size={30} />
-          </div>
-          <h3>Evidence Bus</h3>
-          <p>One media packet fans out into independent evidence lanes.</p>
-        </div>
-
-        <div className="diagram-node node-arbiter">
-          <span className="node-index">04</span>
-          <div className="node-orb warning"><ShieldAlert size={26} /></div>
-          <h3>Safety Arbiter</h3>
-          <p>Weights opinions, caps confidence, and abstains when evidence is weak.</p>
-        </div>
-
-        <div className="diagram-node node-report">
-          <span className="node-index">05</span>
-          <div className="node-orb report-orb"><FileText size={26} /></div>
-          <h3>Report</h3>
-          <p>Victim summary plus JSON/PDF technical appendix.</p>
-        </div>
-
-        <div className="layer-cluster top-cluster">
+      <div className="evidence-lanes">
+        <section className="layer-cluster">
           <span className="cluster-label">Provenance lane</span>
           {sideLayers.slice(0, 2).map(([title, detail, icon]) => {
             const LayerIcon = icon;
@@ -817,9 +763,9 @@ function ArchitectureFlowchart() {
               </article>
             );
           })}
-        </div>
+        </section>
 
-        <div className="layer-cluster bottom-cluster">
+        <section className="layer-cluster">
           <span className="cluster-label">Analysis lane</span>
           {sideLayers.slice(2).map(([title, detail, icon]) => {
             const LayerIcon = icon;
@@ -833,7 +779,7 @@ function ArchitectureFlowchart() {
               </article>
             );
           })}
-        </div>
+        </section>
 
         <div className="decision-stack">
           <span>likely real</span>
@@ -849,38 +795,40 @@ function ArchitectureFlowchart() {
 function ReportPreviewScene() {
   return (
     <div className="report-preview-scene" aria-hidden="true">
-      <div className="report-sheet">
-        <div className="report-sheet-head">
-          <div>
-            <span />
-            <strong>Authenticity Report</strong>
-          </div>
-          <BadgeCheck size={20} />
-        </div>
-        <div className="report-verdict-preview">
-          <p>Likely AI generated</p>
-          <strong>79%</strong>
-          <span>medium confidence</span>
-        </div>
-        <div className="report-bars">
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="report-layer-list">
-          {['Model consensus', 'Metadata and C2PA', 'Noise and ELA', 'Regional anomaly map'].map((item, index) => (
-            <div className="report-layer-row" style={{ '--index': index }} key={item}>
-              <i />
-              <span>{item}</span>
-              <strong>{index === 0 ? 'supports AI' : index === 1 ? 'neutral' : 'weak signal'}</strong>
+      <div className="report-preview-frame">
+        <div className="report-sheet">
+          <div className="report-sheet-head">
+            <div>
+              <span />
+              <strong>Authenticity Report</strong>
             </div>
-          ))}
+            <BadgeCheck size={20} />
+          </div>
+          <div className="report-verdict-preview">
+            <p>Likely AI generated</p>
+            <strong>79%</strong>
+            <span>medium confidence</span>
+          </div>
+          <div className="report-bars">
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="report-layer-list">
+            {['Model consensus', 'Metadata and C2PA', 'Noise and ELA', 'Regional anomaly map'].map((item, index) => (
+              <div className="report-layer-row" style={{ '--index': index }} key={item}>
+                <i />
+                <span>{item}</span>
+                <strong>{index === 0 ? 'supports AI' : index === 1 ? 'neutral' : 'weak signal'}</strong>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-      <div className="export-stack">
-        <span><FileJson size={17} /> JSON</span>
-        <span><FileText size={17} /> PDF</span>
-        <span><Download size={17} /> Save</span>
+        <div className="export-stack">
+          <span><FileJson size={17} /> JSON</span>
+          <span><FileText size={17} /> PDF</span>
+          <span><Download size={17} /> Save</span>
+        </div>
       </div>
     </div>
   );
