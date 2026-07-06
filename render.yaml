@@ -10,7 +10,6 @@ services:
     dockerCommand: python -m app.render_entrypoint
     healthCheckPath: /health
     autoDeployTrigger: commit
-    maxShutdownDelaySeconds: 120
     disk:
       name: aida-data
       mountPath: /data
