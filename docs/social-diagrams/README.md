@@ -8,8 +8,10 @@ Recommended 4-image X post order:
 
 1. `05-the-mixture-of-experts-design.png`
 2. `04-the-evidence-bus.png`
-3. `06-the-report-is-the-product.png`
-4. `08-deployment-architecture.png`
+3. `02-the-product-in-one-flow.png`
+4. `07-the-verdict-policy.png`
+
+For the article body, use `06-the-report-is-the-product.png` and `08-deployment-architecture.png` where readers can click or zoom. They are wider diagrams and work better in long-form posts than in a four-image X grid.
 
 All exported diagrams:
 
