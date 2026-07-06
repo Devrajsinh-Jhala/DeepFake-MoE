@@ -220,3 +220,20 @@ The production compose file starts:
 
 The first model-backed analysis may be slow while Hugging Face model weights are downloaded and cached. For a public deployment, choose a host with enough memory for PyTorch plus the configured mixture-of-experts detector panel.
 The production compose file sets `HF_HOME=/data/huggingface` so model weights persist in the application data volume across restarts.
+
+## Render Blueprint Deployment
+
+This repo includes `render.yaml` for a Docker-based Render deployment. It provisions one public web service, one Render Postgres database, and one Render Key Value queue.
+
+The Render web service runs both FastAPI and the RQ worker in one container through `python -m app.render_entrypoint`. This is intentional: the app stores sensitive uploads as encrypted short-lived blobs under `/data`, and Render persistent disks are attached to one service. Keeping the worker in the same service lets the API and worker share the same encrypted temp storage and Hugging Face model cache.
+
+Deploy flow:
+
+1. Push `main` to GitHub.
+2. In Render, create a new Blueprint from `https://github.com/Devrajsinh-Jhala/DeepFake-MoE`.
+3. Use the committed `render.yaml`.
+4. Keep the generated `AIDA_ENCRYPTION_KEY` and `AIDA_AUDIT_SALT` values stable after first deploy.
+5. After deploy, open `/ready`; it should report `database=ok` and `redis=ok`.
+6. Run one generated-image control and one real-photo control before sharing the public URL.
+
+The default Blueprint uses the `standard` web plan, a 20 GB persistent disk, `basic-256mb` Postgres, and `starter` Key Value. Increase the web plan if model inference is slow or the service approaches memory limits.

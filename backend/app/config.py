@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     data_dir: Path = Path(".data")
     redis_url: str = "redis://localhost:6379/0"
     use_rq: bool = False
+    public_hostname: str | None = None
 
     encryption_key: str | None = None
     media_ttl_minutes: int = 15
@@ -70,6 +71,15 @@ class Settings(BaseSettings):
             raise ValueError("AIDA_ENCRYPTION_KEY must be a valid Fernet key") from exc
         return value
 
+    @field_validator("database_url")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        if value.startswith("postgres://"):
+            value = "postgresql://" + value.removeprefix("postgres://")
+        if value.startswith("postgresql://"):
+            value = "postgresql+psycopg://" + value.removeprefix("postgresql://")
+        return value
+
     @field_validator("access_token_sha256")
     @classmethod
     def validate_access_token_hash(cls, value: str | None) -> str | None:
@@ -84,6 +94,15 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.deployment_mode.lower() == "production"
 
+    @property
+    def effective_allowed_origins(self) -> list[str]:
+        origins = list(self.allowed_origins)
+        if self.public_hostname:
+            hostname = self.public_hostname.strip().removeprefix("https://").removeprefix("http://").rstrip("/")
+            if hostname:
+                origins.append(f"https://{hostname}")
+        return sorted(set(origins))
+
     def production_errors(self) -> list[str]:
         if not self.is_production:
             return []
@@ -96,7 +115,8 @@ class Settings(BaseSettings):
         if not self.use_rq:
             errors.append("AIDA_USE_RQ=true is required in production so image analysis runs in workers.")
         local_origins = {"http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:4173", "http://localhost:4173"}
-        if not self.allowed_origins or all(origin in local_origins for origin in self.allowed_origins):
+        effective_origins = self.effective_allowed_origins
+        if not effective_origins or all(origin in local_origins for origin in effective_origins):
             errors.append("AIDA_ALLOWED_ORIGINS must include the deployed frontend origin in production.")
         if self.require_access_token and not self.access_token_sha256:
             errors.append("AIDA_ACCESS_TOKEN_SHA256 is required when access token protection is enabled.")

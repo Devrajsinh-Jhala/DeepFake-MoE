@@ -1,0 +1,85 @@
+services:
+  - type: web
+    name: deepfake-moe
+    runtime: docker
+    repo: https://github.com/Devrajsinh-Jhala/DeepFake-MoE
+    branch: main
+    plan: standard
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: python -m app.render_entrypoint
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    maxShutdownDelaySeconds: 120
+    disk:
+      name: aida-data
+      mountPath: /data
+      sizeGB: 20
+    envVars:
+      - key: AIDA_DEPLOYMENT_MODE
+        value: production
+      - key: AIDA_DATABASE_URL
+        fromDatabase:
+          name: deepfake-moe-db
+          property: connectionString
+      - key: AIDA_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: deepfake-moe-redis
+          property: connectionString
+      - key: AIDA_USE_RQ
+        value: "true"
+      - key: AIDA_DATA_DIR
+        value: /data
+      - key: HF_HOME
+        value: /data/huggingface
+      - key: AIDA_PUBLIC_HOSTNAME
+        fromService:
+          type: web
+          name: deepfake-moe
+          envVarKey: RENDER_EXTERNAL_HOSTNAME
+      - key: AIDA_ALLOWED_ORIGINS
+        value: "[]"
+      - key: AIDA_ENCRYPTION_KEY
+        generateValue: true
+      - key: AIDA_AUDIT_SALT
+        generateValue: true
+      - key: AIDA_MEDIA_TTL_MINUTES
+        value: "15"
+      - key: AIDA_JOB_TTL_HOURS
+        value: "24"
+      - key: AIDA_MAX_UPLOAD_BYTES
+        value: "15728640"
+      - key: AIDA_RATE_LIMIT_ENABLED
+        value: "true"
+      - key: AIDA_RATE_LIMIT_WINDOW_SECONDS
+        value: "60"
+      - key: AIDA_RATE_LIMIT_MAX_REQUESTS
+        value: "120"
+      - key: AIDA_ANALYSIS_RATE_LIMIT_MAX_REQUESTS
+        value: "12"
+      - key: AIDA_METRICS_ENABLED
+        value: "false"
+      - key: AIDA_REQUIRE_ACCESS_TOKEN
+        value: "false"
+      - key: AIDA_ENABLE_HF_MODEL
+        value: "true"
+      - key: AIDA_HF_MODEL_IDS
+        value: Ateeqq/ai-vs-human-image-detector,dima806/ai_vs_real_image_detection,jacoballessio/ai-image-detect-distilled,SadraCoding/SDXL-Deepfake-Detector
+      - key: VITE_API_BASE_URL
+        value: ""
+      - key: VITE_REQUIRE_ACCESS_TOKEN
+        value: "false"
+
+  - type: keyvalue
+    name: deepfake-moe-redis
+    plan: starter
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+databases:
+  - name: deepfake-moe-db
+    plan: basic-256mb
+    databaseName: aida
+    user: aida
+    ipAllowList: []
