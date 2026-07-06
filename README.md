@@ -1,3 +1,15 @@
+---
+title: AI Deepfake Analyzer
+sdk: docker
+app_port: 8000
+suggested_hardware: cpu-basic
+models:
+  - Ateeqq/ai-vs-human-image-detector
+  - dima806/ai_vs_real_image_detection
+  - jacoballessio/ai-image-detect-distilled
+  - SadraCoding/SDXL-Deepfake-Detector
+---
+
 # AI Deepfake Analyzer
 
 Privacy-first MVP for layered image authenticity analysis. The app accepts an image upload or a public URL, runs metadata/provenance/forensic checks plus optional open-source model adapters, and returns a victim-friendly report with a technical appendix.
@@ -237,3 +249,17 @@ Deploy flow:
 6. Run one generated-image control and one real-photo control before sharing the public URL.
 
 The default Blueprint uses the `standard` web plan, a 20 GB persistent disk, `basic-256mb` Postgres, and `starter` Key Value. Increase the web plan if model inference is slow or the service approaches memory limits.
+
+## Hugging Face Spaces Demo Deployment
+
+For the least-friction public demo, use Hugging Face Spaces with the Docker SDK. Spaces CPU Basic is a better free fit for this ML-heavy app than most web-app free tiers because it provides enough RAM for the pretrained detector ensemble. The tradeoff is that default disk storage is ephemeral, so model weights and local SQLite state can be lost when the Space restarts.
+
+Deploy flow:
+
+```powershell
+hf auth login
+hf repo create YOUR_USERNAME/deepfake-moe --repo-type space --space_sdk docker --exist-ok
+hf upload YOUR_USERNAME/deepfake-moe . --repo-type space --exclude ".git/*" ".cache/*" "backend/.data/*" "backend/.venv/*" "frontend/node_modules/*" "frontend/dist/*" "test-artifacts/*"
+```
+
+The README front matter sets `sdk: docker` and `app_port: 8000`, and the Docker image enables the Hugging Face detector ensemble by default. Use this path for demos and early public feedback. Use the Render/Docker Compose production paths when you need stable storage, queue durability, database backups, and stricter operations.
