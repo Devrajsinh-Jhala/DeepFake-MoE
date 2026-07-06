@@ -4,16 +4,23 @@ These files are rendered from `docs/deepfake-analyzer-article.md` so the diagram
 
 Use `.png` for X/Twitter, LinkedIn, and thumbnails. Use `.svg` for websites, docs, and article platforms that preserve vector images.
 
-Recommended 4-image X post order:
+Final article file:
 
-1. `05-the-mixture-of-experts-design.png`
-2. `04-the-evidence-bus.png`
-3. `02-the-product-in-one-flow.png`
-4. `07-the-verdict-policy.png`
+- `docs/deepfake-analyzer-final-article.md` embeds the 5:2 header plus all eight rendered diagram PNGs using GitHub raw URLs.
 
-For the article body, use `06-the-report-is-the-product.png` and `08-deployment-architecture.png` where readers can click or zoom. They are wider diagrams and work better in long-form posts than in a four-image X grid.
+Article image order:
 
-All exported diagrams:
+0. `article-header-5x2.png`
+1. `01-why-a-single-deepfake-score-is-not-enough.png`
+2. `02-the-product-in-one-flow.png`
+3. `03-the-input-boundary.png`
+4. `04-the-evidence-bus.png`
+5. `05-the-mixture-of-experts-design.png`
+6. `06-the-report-is-the-product.png`
+7. `07-the-verdict-policy.png`
+8. `08-deployment-architecture.png`
+
+All exported diagram files:
 
 - Why a Single Deepfake Score Is Not Enough: `01-why-a-single-deepfake-score-is-not-enough.png`, `01-why-a-single-deepfake-score-is-not-enough.svg`, source `01-why-a-single-deepfake-score-is-not-enough.mmd`
 - The Product in One Flow: `02-the-product-in-one-flow.png`, `02-the-product-in-one-flow.svg`, source `02-the-product-in-one-flow.mmd`

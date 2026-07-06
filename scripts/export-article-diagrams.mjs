@@ -197,13 +197,6 @@ function main() {
     });
   });
 
-  const recommended = [
-    '05-the-mixture-of-experts-design.png',
-    '04-the-evidence-bus.png',
-    '06-the-report-is-the-product.png',
-    '08-deployment-architecture.png',
-  ];
-
   const readme = [
     '# Social Diagram Exports',
     '',
@@ -211,11 +204,16 @@ function main() {
     '',
     'Use `.png` for X/Twitter, LinkedIn, and thumbnails. Use `.svg` for websites, docs, and article platforms that preserve vector images.',
     '',
-    'Recommended 4-image X post order:',
+    'Final article file:',
     '',
-    ...recommended.map((name, index) => `${index + 1}. \`${name}\``),
+    '- `docs/deepfake-analyzer-final-article.md` embeds the 5:2 header plus all eight rendered diagram PNGs using GitHub raw URLs.',
     '',
-    'All exported diagrams:',
+    'Article image order:',
+    '',
+    '0. `article-header-5x2.png`',
+    ...entries.map((entry, index) => `${index + 1}. \`${entry.png}\``),
+    '',
+    'All exported diagram files:',
     '',
     ...entries.map((entry) => `- ${entry.heading}: \`${entry.png}\`, \`${entry.svg}\`, source \`${entry.mmd}\``),
     '',
@@ -228,7 +226,49 @@ function main() {
   ].join('\n');
 
   writeFileSync(join(outDir, 'README.md'), readme);
+  writeFinalArticle(markdown, entries);
   console.log(`Rendered ${entries.length} Mermaid diagrams into ${outDir}`);
+}
+
+function writeFinalArticle(markdown, entries) {
+  const rawBase = 'https://raw.githubusercontent.com/Devrajsinh-Jhala/DeepFake-MoE/main/docs/social-diagrams';
+  const captions = [
+    'A single deepfake score is not enough. The app separates model opinions, metadata, forensic layers, and input-quality checks before the final verdict.',
+    'The product flow starts simple for the user, then expands into backend validation, analysis layers, report generation, and privacy-safe runtime storage.',
+    'The input boundary is designed for sensitive media: consent, validation, URL safety, ephemeral storage, analysis, reporting, and early deletion.',
+    'The evidence bus splits one media packet into independent metadata, provenance, hash, forensic, detector, and quality lanes.',
+    'The mixture-of-experts architecture routes evidence through generic detectors, a portrait-gated specialist, forensic/provenance experts, and a safety arbiter.',
+    'The report is the actual product: victim summary, evidence ledger, explainable AI trace, technical appendix, PDF export, and JSON export.',
+    'The verdict policy allows four outcomes, including inconclusive, so the app can preserve uncertainty instead of forcing a risky binary answer.',
+    'The production architecture separates the public web service, durable metadata, queueing, worker inference, encrypted temp storage, model cache, metrics, and audit logs.',
+  ];
+
+  let index = 0;
+  const body = markdown.replace(/```mermaid[\s\S]*?```/g, () => {
+    const entry = entries[index];
+    const caption = captions[index] || entry.heading;
+    index += 1;
+    return [
+      `![${entry.heading}](${rawBase}/${entry.png})`,
+      '',
+      `*Figure ${index}: ${caption}*`,
+    ].join('\n');
+  });
+
+  const finalArticle = body.replace(
+    '# Building an Explainable AI Deepfake Analyzer for Sensitive Media Abuse',
+    [
+      '# Building an Explainable AI Deepfake Analyzer for Sensitive Media Abuse',
+      '',
+      '> Publication-ready version with rendered diagrams. Use this file for platforms that do not render Mermaid diagrams.',
+      '',
+      `![AI Deepfake Analyzer article header](${rawBase}/article-header-5x2.png)`,
+      '',
+      '*Header image: A privacy-first evidence pipeline for explainable deepfake analysis, with media input, expert signals, safety arbiter, and report output.*',
+    ].join('\n'),
+  );
+
+  writeFileSync(join(root, 'docs', 'deepfake-analyzer-final-article.md'), finalArticle);
 }
 
 main();
