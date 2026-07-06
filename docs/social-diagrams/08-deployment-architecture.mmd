@@ -1,0 +1,12 @@
+flowchart LR
+  User["Public user"] --> CDN["HTTPS / CDN / WAF"]
+  CDN --> Web["FastAPI web service and built frontend"]
+  Web --> Postgres["PostgreSQL job and report metadata"]
+  Web --> Redis["Redis/RQ queue"]
+  Web --> Volume["Encrypted temp media and model cache"]
+  Redis --> Worker["Analysis worker"]
+  Worker --> Volume
+  Worker --> Models["Pretrained detector weights"]
+  Worker --> Postgres
+  Web --> Metrics["/ready, /health, optional /metrics"]
+  Web --> Audit["Privacy-safe audit logs"]

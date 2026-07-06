@@ -1,0 +1,15 @@
+flowchart LR
+  A["Uploaded image or public URL"] --> B["Evidence extraction"]
+  B --> C["Model opinions"]
+  B --> D["Metadata and provenance"]
+  B --> E["Forensic layers"]
+  B --> F["Input-quality guard"]
+  C --> G["Calibrated safety arbiter"]
+  D --> G
+  E --> G
+  F --> G
+  G --> H{"Enough independent evidence?"}
+  H -->|"Yes"| I["Likely real / likely AI / likely manipulated"]
+  H -->|"No"| J["Inconclusive"]
+  I --> K["Victim summary plus technical report"]
+  J --> K

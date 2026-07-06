@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant User as User
+  participant UI as Web UI
+  participant API as FastAPI API
+  participant Safety as Input Boundary
+  participant Storage as Ephemeral Storage
+  participant Worker as Analysis Worker
+
+  User->>UI: Choose upload or public URL
+  UI->>User: Ask for consent confirmation
+  UI->>API: POST /analyses
+  API->>Safety: Validate type, size, consent, URL target
+  Safety-->>API: Accepted media packet
+  API->>Storage: Store short-lived encrypted blob
+  API->>Worker: Queue or background analysis
+  Worker->>Storage: Read media for analysis
+  Worker-->>API: Store result and report state
+  API-->>UI: Status and final report
+  User->>API: DELETE /analyses/{id}
+  API->>Storage: Remove remaining media/report state

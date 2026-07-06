@@ -1,0 +1,31 @@
+flowchart TB
+  Result["Completed analysis result"] --> Summary["Victim summary"]
+  Result --> Ledger["Evidence ledger"]
+  Result --> XAI["Explainable AI trace"]
+  Result --> Appendix["Technical appendix"]
+
+  Summary --> S1["Verdict and confidence"]
+  Summary --> S2["Strongest evidence"]
+  Summary --> S3["Limitations and next steps"]
+
+  Ledger --> L1["Metadata and provenance"]
+  Ledger --> L2["Model consensus"]
+  Ledger --> L3["Forensic layers"]
+  Ledger --> L4["Regional anomaly map"]
+
+  XAI --> X1["Primary drivers"]
+  XAI --> X2["Counter-evidence"]
+  XAI --> X3["Uncertainty factors"]
+  XAI --> X4["What would improve confidence"]
+
+  Appendix --> A1["Hashes"]
+  Appendix --> A2["Detector outputs"]
+  Appendix --> A3["Layer metrics"]
+  Appendix --> A4["Reproducibility notes"]
+
+  Summary --> PDF["PDF report"]
+  Ledger --> PDF
+  XAI --> PDF
+  Appendix --> PDF
+
+  Result --> JSON["JSON export"]

@@ -1,0 +1,27 @@
+flowchart TB
+  I["Preprocessed image"] --> Gate["Routing gate"]
+  Gate -->|"Always"| A["Generic detector A"]
+  Gate -->|"Always"| B["Generic detector B"]
+  Gate -->|"Always"| C["Generic detector C"]
+  Gate -->|"Portrait-like input only"| P["Portrait specialist"]
+  Gate -->|"Always"| F["Forensic expert"]
+  Gate -->|"Always"| V["Provenance expert"]
+  Gate -->|"Always"| Q["Input-quality guard"]
+
+  A --> N["Score normalizer"]
+  B --> N
+  C --> N
+  P --> N
+  F --> N
+  V --> N
+  Q --> N
+
+  N --> W["Reliability weights and thresholds"]
+  W --> X["Disagreement check"]
+  X --> Y["False-positive controls"]
+  Y --> Z{"Final evidence standard"}
+
+  Z -->|"Strong AI evidence"| AI["likely_ai_generated"]
+  Z -->|"Strong real-origin evidence"| Real["likely_real"]
+  Z -->|"Manipulation evidence dominates"| Manip["likely_manipulated_or_deepfake"]
+  Z -->|"Evidence weak or conflicted"| Inc["inconclusive"]

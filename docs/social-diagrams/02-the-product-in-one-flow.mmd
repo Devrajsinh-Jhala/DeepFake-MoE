@@ -1,0 +1,46 @@
+flowchart TB
+  subgraph Client["User-facing application"]
+    UI["React/Vite interface"]
+    Preview["Blurred media preview"]
+    Downloads["JSON/PDF downloads"]
+  end
+
+  subgraph API["FastAPI backend"]
+    Routes["/analyses and /report endpoints"]
+    Guards["Consent, file limits, URL safety, rate limits"]
+    Jobs["Job state and result storage"]
+  end
+
+  subgraph Analysis["Analysis pipeline"]
+    Metadata["EXIF/XMP and C2PA checks"]
+    Hashes["SHA-256 and perceptual hashes"]
+    Forensics["Noise, ELA, frequency, regional maps"]
+    Models["Open-source detector ensemble"]
+    Arbiter["Safety arbiter and abstention policy"]
+  end
+
+  subgraph Runtime["Deployment runtime"]
+    Store["Ephemeral encrypted temp storage"]
+    DB["SQLite demo or PostgreSQL production"]
+    Queue["Background task or Redis/RQ worker"]
+    Logs["Privacy-safe audit and metrics"]
+  end
+
+  UI --> Routes
+  Preview --> Routes
+  Routes --> Guards
+  Guards --> Store
+  Guards --> Jobs
+  Jobs --> Queue
+  Queue --> Metadata
+  Queue --> Hashes
+  Queue --> Forensics
+  Queue --> Models
+  Metadata --> Arbiter
+  Hashes --> Arbiter
+  Forensics --> Arbiter
+  Models --> Arbiter
+  Arbiter --> Jobs
+  Jobs --> Downloads
+  Jobs --> DB
+  Routes --> Logs

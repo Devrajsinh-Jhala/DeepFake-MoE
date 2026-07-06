@@ -1,0 +1,5 @@
+body { margin: 0; background: #f8fafc; }
+svg { font-family: Inter, "Segoe UI", Arial, sans-serif !important; }
+.node rect, .node polygon, .node circle, .node ellipse { filter: drop-shadow(0 8px 16px rgba(15, 23, 42, 0.08)); }
+.edgePath path { stroke-width: 2.4px !important; }
+.label, .nodeLabel, .edgeLabel, text { letter-spacing: 0 !important; }

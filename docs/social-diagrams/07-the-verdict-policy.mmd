@@ -1,0 +1,12 @@
+stateDiagram-v2
+  [*] --> CollectEvidence
+  CollectEvidence --> CheckQuality
+  CheckQuality --> ModelConsensus
+  ModelConsensus --> NonModelEvidence
+  NonModelEvidence --> DisagreementReview
+  DisagreementReview --> FinalLabel
+
+  FinalLabel --> likely_real: Real evidence dominates
+  FinalLabel --> likely_ai_generated: AI evidence crosses threshold
+  FinalLabel --> likely_manipulated_or_deepfake: Manipulation evidence dominates
+  FinalLabel --> inconclusive: Evidence weak, noisy, or conflicted

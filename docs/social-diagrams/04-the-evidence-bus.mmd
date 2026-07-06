@@ -1,0 +1,25 @@
+flowchart LR
+  Packet["Validated media packet"] --> Bus["Evidence bus"]
+
+  Bus --> M["Metadata lane"]
+  Bus --> P["Provenance lane"]
+  Bus --> H["Hash lane"]
+  Bus --> F["Forensic lane"]
+  Bus --> D["Detector lane"]
+  Bus --> Q["Quality guard"]
+
+  M --> A["Safety arbiter"]
+  P --> A
+  H --> A
+  F --> A
+  D --> A
+  Q --> A
+
+  A --> R["Report ledger"]
+
+  M -.-> M1["EXIF, XMP, PNG text, software markers"]
+  P -.-> P1["C2PA/content credentials when available"]
+  H -.-> H1["SHA-256, average hash, difference hash"]
+  F -.-> F1["ELA, noise, edges, frequency, regional tiles"]
+  D -.-> D1["Generic detectors and gated specialists"]
+  Q -.-> Q1["Resolution, compression, entropy, aspect ratio"]
