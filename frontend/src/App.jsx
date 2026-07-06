@@ -645,14 +645,14 @@ function MoEFlowDiagram() {
   return (
     <div className="moe-diagram" aria-label="Mixture of experts model architecture">
       <div className="moe-flow-shell">
-        <div className="moe-stage-card">
+        <div className="moe-stage-card moe-input-card">
           <span>01</span>
           <ImageUp size={24} />
           <h3>Preprocess</h3>
           <p>Resize safely, inspect quality, compute hashes, and prepare model-ready inputs.</p>
         </div>
 
-        <div className="moe-stage-card">
+        <div className="moe-stage-card moe-gate-card">
           <span>02</span>
           <Gauge size={24} />
           <h3>Routing Gate</h3>
@@ -684,14 +684,14 @@ function MoEFlowDiagram() {
           </div>
         </section>
 
-        <div className="moe-stage-card">
+        <div className="moe-stage-card moe-normalizer-card">
           <span>04</span>
           <BadgeCheck size={24} />
           <h3>Score Normalizer</h3>
           <p>Converts raw labels into calibrated stances, weights reliability, and records disagreement.</p>
         </div>
 
-        <div className="moe-stage-card danger">
+        <div className="moe-stage-card danger moe-arbiter-card">
           <span>05</span>
           <ShieldAlert size={24} />
           <h3>Safety Arbiter</h3>

@@ -2760,3 +2760,259 @@ code {
     grid-template-columns: 1fr;
   }
 }
+
+/* Final launch polish for the MoE architecture board */
+.moe-diagram {
+  padding: 24px;
+  background:
+    linear-gradient(90deg, rgba(19, 117, 104, 0.045) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(19, 117, 104, 0.045) 1px, transparent 1px),
+    linear-gradient(135deg, #fbfdfd 0%, #f0f7f6 100%);
+  background-size: 34px 34px, 34px 34px, auto;
+}
+
+.moe-flow-shell {
+  grid-template-columns: minmax(205px, 0.72fr) minmax(460px, 1.56fr) minmax(215px, 0.76fr);
+  grid-template-areas:
+    "input experts normalizer"
+    "gate experts arbiter"
+    "gate experts verdict";
+  gap: 16px;
+  align-items: start;
+}
+
+.moe-flow-shell::before {
+  display: none;
+}
+
+.moe-input-card {
+  grid-area: input;
+}
+
+.moe-gate-card {
+  grid-area: gate;
+}
+
+.moe-expert-panel {
+  grid-area: experts;
+}
+
+.moe-normalizer-card {
+  grid-area: normalizer;
+}
+
+.moe-arbiter-card {
+  grid-area: arbiter;
+}
+
+.moe-verdict-stack {
+  grid-area: verdict;
+}
+
+.moe-stage-card,
+.moe-expert-panel,
+.moe-verdict-stack {
+  min-height: 0;
+  border-color: #c9dbe4;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.moe-stage-card {
+  padding: 16px;
+}
+
+.moe-stage-card > span,
+.moe-panel-head > span {
+  margin-bottom: 10px;
+}
+
+.moe-stage-card h3,
+.moe-panel-head h3 {
+  margin: 10px 0 7px;
+  font-size: 0.96rem;
+}
+
+.moe-stage-card p,
+.moe-panel-head p {
+  font-size: 0.8rem;
+  line-height: 1.42;
+}
+
+.moe-expert-panel {
+  padding: 18px;
+  border-color: #9fcfc8;
+  box-shadow:
+    0 20px 46px rgba(37, 50, 69, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+}
+
+.moe-panel-head {
+  align-items: center;
+  min-height: 48px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #d8e6e7;
+}
+
+.moe-panel-head p {
+  max-width: 560px;
+}
+
+.moe-expert-stack {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.moe-expert-node {
+  grid-template-columns: 26px 1fr;
+  min-height: 116px;
+  padding: 12px;
+  border-color: #abd7d0;
+  background: #ffffff;
+}
+
+.moe-expert-node h4 {
+  font-size: 0.84rem;
+}
+
+.moe-expert-node p {
+  display: -webkit-box;
+  margin-bottom: 7px;
+  overflow: hidden;
+  color: #526175;
+  font-size: 0.7rem;
+  line-height: 1.34;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.moe-expert-node strong {
+  font-size: 0.7rem;
+}
+
+.moe-verdict-stack {
+  align-content: start;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  padding: 12px;
+  background: rgba(23, 32, 51, 0.05);
+}
+
+.moe-verdict-stack::before {
+  content: "Final label set";
+  color: #526175;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.moe-verdict-stack span {
+  min-height: 30px;
+  padding: 7px 10px;
+  font-size: 0.74rem;
+}
+
+.moe-rule-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.moe-rule {
+  min-height: 74px;
+  padding: 11px;
+  font-size: 0.76rem;
+}
+
+@media (max-width: 1180px) {
+  .moe-flow-shell {
+    grid-template-columns: 1fr 1.35fr;
+    grid-template-areas:
+      "input experts"
+      "gate experts"
+      "normalizer arbiter"
+      "verdict verdict";
+  }
+
+  .moe-expert-panel {
+    grid-column: auto;
+  }
+
+  .moe-rule-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .moe-diagram {
+    padding: 14px;
+  }
+
+  .moe-flow-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "input"
+      "gate"
+      "experts"
+      "normalizer"
+      "arbiter"
+      "verdict";
+  }
+
+  .moe-expert-stack,
+  .moe-rule-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Final presentation composition: pipeline row over expert board */
+.moe-flow-shell {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-areas:
+    "input gate normalizer arbiter"
+    "experts experts experts experts"
+    "verdict verdict verdict verdict";
+}
+
+.moe-stage-card {
+  min-height: 178px;
+}
+
+.moe-expert-panel {
+  min-height: 0;
+}
+
+.moe-verdict-stack {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-self: stretch;
+  align-content: start;
+  min-height: auto;
+}
+
+.moe-verdict-stack::before {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1180px) {
+  .moe-flow-shell {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "input gate"
+      "normalizer arbiter"
+      "experts experts"
+      "verdict verdict";
+  }
+}
+
+@media (max-width: 760px) {
+  .moe-flow-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "input"
+      "gate"
+      "experts"
+      "normalizer"
+      "arbiter"
+      "verdict";
+  }
+}
