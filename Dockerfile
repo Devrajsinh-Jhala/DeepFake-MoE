@@ -18,6 +18,7 @@ FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    AIDA_DATABASE_URL=sqlite:////data/app.db \
     AIDA_ENABLE_HF_MODEL=true \
     AIDA_DATA_DIR=/data \
     HF_HOME=/data/huggingface

@@ -1,7 +1,9 @@
 from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from sqlalchemy import JSON, DateTime, String, Text, create_engine, delete
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from .config import get_settings
@@ -37,7 +39,15 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expi
 
 def init_db() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
+    _ensure_sqlite_parent(settings.database_url)
     Base.metadata.create_all(bind=engine)
+
+
+def _ensure_sqlite_parent(database_url: str) -> None:
+    url = make_url(database_url)
+    if not url.drivername.startswith("sqlite") or not url.database or url.database == ":memory:":
+        return
+    Path(url.database).parent.mkdir(parents=True, exist_ok=True)
 
 
 def get_db() -> Generator[Session, None, None]:
