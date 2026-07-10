@@ -102,7 +102,7 @@ const moeExperts = [
   {
     title: 'Generic Detector A',
     detail: 'Broad AI-vs-real image classifier. Strong synthetic score is useful but never trusted alone.',
-    output: 'AI probability + label',
+    output: 'AI evidence score + label',
     icon: Cpu,
   },
   {
@@ -427,15 +427,19 @@ function App() {
               <div className="report">
                 <div className={`verdict ${verdict.label}`}>
                   <p>{verdictCopy[verdict.label] || verdict.label}</p>
-                  <h2>{Math.round(verdict.ai_probability * 100)}% AI probability</h2>
+                  <h2>{Math.round(verdict.ai_probability * 100)}% AI evidence score</h2>
                   <span>{verdict.confidence} confidence</span>
                 </div>
 
                 <div className="meter-group">
-                  <Metric label="AI probability" value={verdict.ai_probability} />
-                  <Metric label="Manipulation probability" value={verdict.manipulation_probability} />
-                  <Metric label="Detector disagreement" value={verdict.disagreement} />
+                  <Metric label="AI evidence score" value={verdict.ai_probability} />
+                  <Metric label="Manipulation evidence" value={verdict.manipulation_probability} />
+                  <Metric label="Cross-layer disagreement" value={verdict.disagreement} />
                 </div>
+
+                <p className="score-disclaimer">
+                  This is calibrated evidence strength, not the probability that a person or image is fake.
+                </p>
 
                 <div className="actions">
                   <button type="button" className="secondary" onClick={() => downloadReport('json')}>
@@ -1029,10 +1033,13 @@ function Explainability({ explainability }) {
         </div>
         <ul>
           <li>{consensus.ai_votes || 0} model votes for AI-generated.</li>
+          <li>{consensus.lean_ai_votes || 0} of {consensus.enabled_models || 0} experts lean AI after their model-specific gates.</li>
           <li>{consensus.real_votes || 0} model votes for real or human-origin.</li>
-          <li>Reliability-weighted model AI probability: {Math.round((consensus.average_ai_probability || 0) * 100)}%.</li>
-          <li>Raw average model AI probability: {Math.round((consensus.raw_average_ai_probability || 0) * 100)}%.</li>
+          <li>Primary-anchored alignment: {consensus.primary_anchored_alignment ? 'yes' : 'no'}.</li>
+          <li>Calibrated model evidence score: {Math.round((consensus.average_ai_probability || 0) * 100)}%.</li>
+          <li>Raw average model output: {Math.round((consensus.raw_average_ai_probability || 0) * 100)}%.</li>
           <li>Disagreement range: {Math.round((consensus.disagreement_range || 0) * 100)}%.</li>
+          <li>Scores inside each model&apos;s abstention band contribute neutral evidence.</li>
         </ul>
       </article>
       {!!standard.policy && (

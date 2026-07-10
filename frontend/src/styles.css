@@ -1789,6 +1789,16 @@ h1 {
   gap: 10px;
 }
 
+.score-disclaimer {
+  margin: -4px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid #147d70;
+  background: #eef8f6;
+  color: #405368;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
 .metric {
   padding: 12px;
   border: 1px solid #d5dde7;

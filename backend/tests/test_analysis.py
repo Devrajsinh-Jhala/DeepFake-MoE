@@ -121,6 +121,14 @@ def test_model_label_mapping_handles_human_artificial_labels() -> None:
     ) == pytest.approx(0.01)
 
 
+def test_model_label_mapping_supports_explicit_numeric_labels() -> None:
+    profile = {"ai_labels": ["label_1"], "real_labels": ["label_0"]}
+    assert _map_classifier_outputs_to_ai_probability(
+        [{"label": "LABEL_1", "score": 0.83}, {"label": "LABEL_0", "score": 0.17}],
+        profile,
+    ) == pytest.approx(0.83)
+
+
 def test_model_ensemble_signal_summarizes_votes() -> None:
     signal = model_ensemble_signal(
         [
@@ -132,7 +140,7 @@ def test_model_ensemble_signal_summarizes_votes() -> None:
 
     assert signal.label == "ensemble_likely_ai_generated"
     assert signal.confidence == "high"
-    assert signal.ai_probability == pytest.approx(0.9267)
+    assert signal.ai_probability == pytest.approx(0.869)
 
 
 def test_model_ensemble_rejects_soft_leaning_ai_consensus() -> None:
@@ -146,7 +154,48 @@ def test_model_ensemble_rejects_soft_leaning_ai_consensus() -> None:
 
     assert signal.label == "ensemble_inconclusive"
     assert signal.confidence == "low"
-    assert signal.ai_probability == pytest.approx(0.7667)
+    assert signal.ai_probability == pytest.approx(0.6607)
+
+
+def test_model_ensemble_accepts_primary_anchored_alignment() -> None:
+    signal = model_ensemble_signal(
+        [
+            DetectorSignal(
+                "hf:buildborderless/CommunityForensics-DeepfakeDet-ViT",
+                "ok",
+                "model_inconclusive",
+                0.72,
+                None,
+                "low",
+                [],
+                1.0,
+            ),
+            DetectorSignal(
+                "hf:Ateeqq/ai-vs-human-image-detector",
+                "ok",
+                "model_likely_ai_generated",
+                0.999,
+                None,
+                "medium",
+                [],
+                0.3,
+            ),
+            DetectorSignal(
+                "hf:jacoballessio/ai-image-detect-distilled",
+                "ok",
+                "model_inconclusive",
+                0.62,
+                None,
+                "low",
+                [],
+                0.45,
+            ),
+        ]
+    )
+
+    assert signal.label == "ensemble_likely_ai_generated"
+    assert signal.confidence == "medium"
+    assert signal.ai_probability == pytest.approx(0.74)
 
 
 def test_model_ensemble_is_inconclusive_when_detectors_disagree_strongly() -> None:
@@ -222,6 +271,27 @@ def test_aggregate_verdict_allows_overwhelming_model_consensus_without_real_vote
     assert verdict["label"] == "likely_ai_generated"
     assert verdict["confidence"] == "medium"
     assert verdict["ai_probability"] == pytest.approx(0.72)
+
+
+def test_aggregate_verdict_allows_primary_anchored_consensus() -> None:
+    detectors = [
+        DetectorSignal("metadata_provenance", "ok", "inconclusive", 0.5, 0.25, "low", ["none"], 0.22),
+        DetectorSignal("compression_noise_forensics", "ok", "no_strong_forensic_signal", 0.36, 0.25, "low", ["weak"], 0.28),
+        DetectorSignal("hf:buildborderless/CommunityForensics-DeepfakeDet-ViT", "ok", "model_inconclusive", 0.72, None, "low", ["primary"], 1.0),
+        DetectorSignal("hf:Ateeqq/ai-vs-human-image-detector", "ok", "model_likely_ai_generated", 0.999, None, "medium", ["counter"], 0.3),
+        DetectorSignal("hf:jacoballessio/ai-image-detect-distilled", "ok", "model_inconclusive", 0.62, None, "low", ["counter"], 0.45),
+        DetectorSignal("open_source_model_ensemble", "ok", "ensemble_likely_ai_generated", 0.74, None, "medium", ["aligned"], 0.9),
+    ]
+    verdict = aggregate_verdict(
+        detectors,
+        metadata={"generative_markers": [], "has_exif": False, "format": "PNG"},
+        c2pa={"claim": None},
+        forensics={"artificiality_score": 0.12, "manipulation_score": 0.25, "quality": {"risk_score": 0.1}},
+    )
+
+    assert verdict["label"] == "likely_ai_generated"
+    assert verdict["ai_probability"] == pytest.approx(0.72)
+    assert any("primary-anchored" in item for item in verdict["rationale"])
 
 
 def test_aggregate_verdict_caps_camera_like_real_photo_even_with_model_consensus() -> None:

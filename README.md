@@ -20,7 +20,7 @@ The first version is intentionally cautious: it reports probabilities and eviden
 
 Each completed analysis now includes:
 
-- A victim-friendly verdict with confidence, AI probability, manipulation probability, and detector disagreement.
+- A victim-friendly verdict with confidence, AI evidence score, manipulation evidence, and cross-layer disagreement.
 - A mixture-of-experts opinion ledger covering the visual ensemble, portrait specialist, provenance, forensic residuals, input quality, and safety arbiter.
 - A decision summary that separates primary drivers, counter-evidence, uncertainty factors, and evidence that would improve confidence.
 - An analytical layer ledger covering metadata/provenance, visual model consensus, luminance, chroma, edge geometry, noise residual, compression/ELA, frequency spectrum, and regional tile anomalies.
@@ -131,11 +131,11 @@ The base install runs metadata, provenance, hashes, and forensic heuristics. For
 cd backend
 .\.venv\Scripts\python.exe -m pip install -r requirements-ml.txt
 $env:AIDA_ENABLE_HF_MODEL="true"
-$env:AIDA_HF_MODEL_IDS="Ateeqq/ai-vs-human-image-detector,dima806/ai_vs_real_image_detection,jacoballessio/ai-image-detect-distilled,SadraCoding/SDXL-Deepfake-Detector"
+$env:AIDA_HF_MODEL_IDS="buildborderless/CommunityForensics-DeepfakeDet-ViT,Ateeqq/ai-vs-human-image-detector,jacoballessio/ai-image-detect-distilled"
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-The default recommended setup uses a pretrained open-source Hugging Face mixture of experts: three generic AI-image detectors plus one portrait-gated specialist. Treat the ensemble as one evidence layer, not a guarantee. The final verdict uses a victim-safe evidence standard: a small visual-model panel can raise suspicion, but a `likely_ai_generated` claim requires independent non-model evidence or a larger model consensus with no real/human vote.
+The default recommended setup uses Community Forensics as the broad primary detector, plus two independently trained counter-experts. The primary runs on the original image, a center crop, and a controlled JPEG recompression. Each model has its own conservative abstention band, and only calibrated stances are combined. Treat the ensemble as one evidence layer, not a guarantee. A `likely_ai_generated` claim requires signed/generative provenance, independent non-model support, or unusually strong multi-model agreement with no real/human vote.
 
 ## Accuracy And Calibration Gate
 

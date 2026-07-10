@@ -90,11 +90,11 @@
     var verdict = result.verdict;
     var label = verdictLabel(verdict.label);
     return '<div class="report">' +
-      '<div class="verdict ' + escapeAttr(verdict.label) + '"><p>' + escapeHtml(label) + '</p><h2>' + pct(verdict.ai_probability) + ' AI probability</h2><span>' + escapeHtml(verdict.confidence) + " confidence</span></div>" +
+      '<div class="verdict ' + escapeAttr(verdict.label) + '"><p>' + escapeHtml(label) + '</p><h2>' + pct(verdict.ai_probability) + ' AI evidence score</h2><span>' + escapeHtml(verdict.confidence) + " confidence</span></div>" +
       '<div class="meter-group">' +
-      metric("AI probability", verdict.ai_probability) +
-      metric("Manipulation probability", verdict.manipulation_probability) +
-      metric("Detector disagreement", verdict.disagreement) +
+      metric("AI evidence score", verdict.ai_probability) +
+      metric("Manipulation evidence", verdict.manipulation_probability) +
+      metric("Cross-layer disagreement", verdict.disagreement) +
       "</div>" +
       '<div class="actions"><button type="button" class="secondary" id="fallback-json">JSON</button><button type="button" class="secondary" id="fallback-pdf">PDF</button><button type="button" class="secondary danger-action" id="fallback-delete">Delete</button></div>' +
       renderDecisionSummary(result.explainability || {}) +
@@ -157,7 +157,7 @@
     html += '<article class="layer"><div><h4>Model Consensus</h4><span>' + escapeHtml(consensus.enabled_models || 0) + ' models</span></div><ul>';
     html += '<li>' + escapeHtml(consensus.ai_votes || 0) + ' model votes for AI-generated.</li>';
     html += '<li>' + escapeHtml(consensus.real_votes || 0) + ' model votes for real or human-origin.</li>';
-    html += '<li>Average model AI probability: ' + pct(consensus.average_ai_probability || 0) + '.</li>';
+    html += '<li>Calibrated model evidence score: ' + pct(consensus.average_ai_probability || 0) + '.</li>';
     html += '<li>Disagreement range: ' + pct(consensus.disagreement_range || 0) + '.</li>';
     html += '</ul></article>';
     html += '<article class="layer"><div><h4>Strongest Evidence</h4><span>' + escapeHtml(strongest.length) + ' signals</span></div><ul>';

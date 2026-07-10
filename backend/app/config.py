@@ -33,12 +33,11 @@ class Settings(BaseSettings):
     audit_salt: str | None = None
 
     enable_hf_model: bool = False
-    hf_model_id: str = "Ateeqq/ai-vs-human-image-detector"
+    hf_model_id: str = "buildborderless/CommunityForensics-DeepfakeDet-ViT"
     hf_model_ids: str = (
+        "buildborderless/CommunityForensics-DeepfakeDet-ViT,"
         "Ateeqq/ai-vs-human-image-detector,"
-        "dima806/ai_vs_real_image_detection,"
-        "jacoballessio/ai-image-detect-distilled,"
-        "SadraCoding/SDXL-Deepfake-Detector"
+        "jacoballessio/ai-image-detect-distilled"
     )
 
     allowed_origins: list[str] = Field(

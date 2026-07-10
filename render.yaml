@@ -64,7 +64,7 @@ services:
       - key: AIDA_ENABLE_HF_MODEL
         value: "true"
       - key: AIDA_HF_MODEL_IDS
-        value: Ateeqq/ai-vs-human-image-detector,dima806/ai_vs_real_image_detection,jacoballessio/ai-image-detect-distilled,SadraCoding/SDXL-Deepfake-Detector
+        value: buildborderless/CommunityForensics-DeepfakeDet-ViT,Ateeqq/ai-vs-human-image-detector,jacoballessio/ai-image-detect-distilled
       - key: VITE_API_BASE_URL
         value: ""
       - key: VITE_REQUIRE_ACCESS_TOKEN
