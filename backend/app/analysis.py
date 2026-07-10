@@ -45,35 +45,35 @@ EDITING_MARKERS = {
 }
 
 DEFAULT_MODEL_PROFILE = {
-    "weight": 0.55,
-    "ai_threshold": 0.72,
-    "real_threshold": 0.28,
-    "note": "Default detector calibration. Validate this model on the local golden set before trusting it in production.",
+    "weight": 0.4,
+    "ai_threshold": 0.86,
+    "real_threshold": 0.2,
+    "note": "Conservative default detector calibration. Validate this model on the local golden set before trusting it in production.",
 }
 
 MODEL_PROFILES: dict[str, dict[str, Any]] = {
     "Ateeqq/ai-vs-human-image-detector": {
-        "weight": 0.72,
-        "ai_threshold": 0.72,
-        "real_threshold": 0.28,
-        "note": "Strong visual detector; kept below full weight because portrait-style real photos can false-positive.",
+        "weight": 0.45,
+        "ai_threshold": 0.88,
+        "real_threshold": 0.18,
+        "note": "Strong visual detector; aggressively down-weighted because portrait-style real photos can false-positive.",
     },
     "dima806/ai_vs_real_image_detection": {
-        "weight": 0.35,
-        "ai_threshold": 0.82,
-        "real_threshold": 0.22,
+        "weight": 0.2,
+        "ai_threshold": 0.92,
+        "real_threshold": 0.15,
         "note": "CIFAKE-lineage detector; down-weighted for real-world social, portrait, and compressed images.",
     },
     "jacoballessio/ai-image-detect-distilled": {
-        "weight": 0.70,
-        "ai_threshold": 0.60,
-        "real_threshold": 0.30,
+        "weight": 0.55,
+        "ai_threshold": 0.82,
+        "real_threshold": 0.20,
         "note": "Distilled detector used as a counterbalance against portrait false positives.",
     },
     "SadraCoding/SDXL-Deepfake-Detector": {
-        "weight": 0.65,
-        "ai_threshold": 0.70,
-        "real_threshold": 0.30,
+        "weight": 0.50,
+        "ai_threshold": 0.88,
+        "real_threshold": 0.18,
         "portrait_only": True,
         "min_portrait_score": 0.65,
         "expert_group": "portrait_specialist",
@@ -1066,13 +1066,12 @@ def model_ensemble_signal(signals: list[DetectorSignal]) -> DetectorSignal:
     ai_votes = sum(signal.label == "model_likely_ai_generated" for signal in valid_signals)
     lean_ai_votes = sum(value >= 0.6 for value in values)
     real_votes = sum(signal.label == "model_likely_human_or_real" for signal in valid_signals)
+    min_score = min(values)
     if len(values) >= 2 and disagreement > 0.45:
         label = "ensemble_inconclusive"
-    elif ai_votes == len(values) and average >= 0.72:
+    elif len(values) >= 3 and ai_votes == len(values) and min_score >= 0.86 and average >= 0.88 and disagreement <= 0.22:
         label = "ensemble_likely_ai_generated"
-    elif len(values) >= 3 and lean_ai_votes >= max(2, len(values) - 1) and real_votes == 0 and average >= 0.74:
-        label = "ensemble_likely_ai_generated"
-    elif ai_votes > real_votes and real_votes == 0 and average >= 0.76:
+    elif len(values) >= 4 and lean_ai_votes == len(values) and ai_votes >= len(values) - 1 and real_votes == 0 and min_score >= 0.78 and average >= 0.86 and disagreement <= 0.28:
         label = "ensemble_likely_ai_generated"
     elif real_votes == len(values) and average <= 0.28:
         label = "ensemble_likely_real"
@@ -1081,9 +1080,9 @@ def model_ensemble_signal(signals: list[DetectorSignal]) -> DetectorSignal:
     else:
         label = "ensemble_inconclusive"
 
-    if disagreement <= 0.2 and len(values) >= 2:
+    if label == "ensemble_likely_ai_generated" and disagreement <= 0.18 and len(values) >= 3:
         confidence = "high"
-    elif disagreement <= 0.4 and real_votes == 0:
+    elif label == "ensemble_likely_ai_generated" and disagreement <= 0.28 and real_votes == 0:
         confidence = "medium"
     else:
         confidence = "low"
@@ -1093,7 +1092,7 @@ def model_ensemble_signal(signals: list[DetectorSignal]) -> DetectorSignal:
         f"{lean_ai_votes}/{len(values)} visual models leaned AI-generated at or above 60%.",
         f"{real_votes}/{len(values)} visual models voted real/human.",
         f"Visual-model disagreement range: {disagreement:.3f}.",
-        f"Reliability-weighted visual average: {average:.3f}; raw model average: {raw_average:.3f}.",
+        f"Reliability-weighted visual average: {average:.3f}; raw model average: {raw_average:.3f}; weakest model score: {min_score:.3f}.",
     ]
     return DetectorSignal(
         name="open_source_model_ensemble",
@@ -1140,6 +1139,18 @@ def _weighted_average(values: list[float], weights: list[float]) -> float:
     return float(sum(value * max(0.0, weight) for value, weight in zip(values, weights, strict=False)) / total_weight)
 
 
+def _camera_like_real_prior(metadata: dict[str, Any], forensics: dict[str, Any]) -> bool:
+    image_format = str(metadata.get("format") or "").upper()
+    noise = forensics.get("noise") or {}
+    entropy = float(forensics.get("entropy") or 0.0)
+    tile_variance = float(noise.get("tile_variance_mean") or 0.0)
+    low_noise_hint = float(noise.get("low_noise_hint") or 0.0)
+    camera_container = image_format in {"JPEG", "JPG", "MPO"} or bool(metadata.get("has_exif"))
+    natural_residuals = entropy >= 5.0 and tile_variance >= 70.0 and low_noise_hint <= 0.75
+    weak_artifacts = float(forensics.get("artificiality_score") or 0.0) < 0.45 and float(forensics.get("manipulation_score") or 0.0) < 0.65
+    return camera_container and natural_residuals and weak_artifacts
+
+
 def aggregate_verdict(
     detectors: list[DetectorSignal],
     metadata: dict[str, Any],
@@ -1179,6 +1190,8 @@ def aggregate_verdict(
     model_lean_ai_votes = sum(value >= 0.6 for value in model_values)
     model_real_votes = sum(detector.label == "model_likely_human_or_real" for detector in model_detectors)
     quality_risk = float((forensics.get("quality") or {}).get("risk_score") or 0.0)
+    model_min_score = min(model_values) if model_values else 0.0
+    camera_like_real_prior = _camera_like_real_prior(metadata, forensics)
 
     if model_signal and model_signal.ai_probability is not None:
         available = [
@@ -1209,11 +1222,23 @@ def aggregate_verdict(
         and detector.ai_probability >= 0.72
         for detector in detectors
     )
-    larger_model_consensus = (
+    overwhelming_model_consensus = (
         len(model_values) >= 3
-        and model_lean_ai_votes >= max(2, len(model_values) - 1)
+        and model_ai_votes == len(model_values)
+        and model_min_score >= 0.86
         and model_real_votes == 0
-        and model_disagreement < 0.42
+        and model_disagreement <= 0.22
+    )
+    larger_model_consensus = (
+        overwhelming_model_consensus
+        or (
+            len(model_values) >= 4
+            and model_lean_ai_votes == len(model_values)
+            and model_ai_votes >= len(model_values) - 1
+            and model_real_votes == 0
+            and model_min_score >= 0.78
+            and model_disagreement <= 0.28
+        )
     )
     model_only_ai_claim = (
         model_signal is not None
@@ -1243,17 +1268,43 @@ def aggregate_verdict(
         and forensics["artificiality_score"] < 0.45
         and forensics["manipulation_score"] < 0.65
     )
-    model_uncorroborated = has_model and weak_non_model_artifacts and not larger_model_consensus and (
+    uncorroborated_model_evidence = has_model and weak_non_model_artifacts and not non_model_ai_support
+    model_uncorroborated = uncorroborated_model_evidence and (
         model_disagreement >= 0.45
         or (model_signal is not None and model_signal.confidence == "low")
-        or (len(model_values) >= 2 and model_ai_votes < 2)
+        or len(model_values) < 3
+        or model_real_votes > 0
+        or not larger_model_consensus
         or model_only_ai_claim
     )
-    if model_uncorroborated and ai_probability > 0.64:
-        ai_probability = 0.64
+
+    model_only_probability_cap = None
+    if uncorroborated_model_evidence:
+        model_only_probability_cap = 0.72 if larger_model_consensus else 0.55
+        if len(model_values) < 3:
+            model_only_probability_cap = min(model_only_probability_cap, 0.52)
+        if model_real_votes > 0:
+            model_only_probability_cap = min(model_only_probability_cap, 0.52)
+        if model_disagreement >= 0.35:
+            model_only_probability_cap = min(model_only_probability_cap, 0.52)
+        if quality_risk >= 0.45:
+            model_only_probability_cap = min(model_only_probability_cap, 0.54)
+        if metadata.get("has_exif") or camera_like_real_prior:
+            model_only_probability_cap = min(model_only_probability_cap, 0.48)
+
+    if model_only_probability_cap is not None and ai_probability > model_only_probability_cap:
+        ai_probability = model_only_probability_cap
         rationale.append(
             "Final AI probability was capped because visual-model suspicion was not corroborated by independent metadata, provenance, or forensic evidence."
         )
+        if camera_like_real_prior:
+            rationale.append(
+                "Camera-like JPEG/container and residual evidence triggered the real-photo false-positive guard."
+            )
+        if model_real_votes > 0 or model_disagreement >= 0.35:
+            rationale.append(
+                "Detector disagreement or at least one real/human model vote prevented a stronger AI claim."
+            )
     if quality_risk >= 0.55 and not non_model_ai_support and ai_probability > 0.68:
         ai_probability = 0.68
         rationale.append(
@@ -1272,7 +1323,10 @@ def aggregate_verdict(
         and (non_model_ai_support or larger_model_consensus)
     )
     if model_supports_ai and not model_uncorroborated and model_signal.ai_probability is not None:
-        ai_probability = max(ai_probability, min(float(model_signal.ai_probability), 0.88))
+        upper_bound = 0.72 if uncorroborated_model_evidence else 0.88
+        if model_only_probability_cap is not None:
+            upper_bound = min(upper_bound, model_only_probability_cap)
+        ai_probability = max(ai_probability, min(float(model_signal.ai_probability), upper_bound))
 
     if model_supports_ai and ai_probability >= 0.72:
         label = "likely_ai_generated"
@@ -1462,10 +1516,12 @@ def build_explainability(
             "likely_ai_requires": [
                 "Readable generative metadata or C2PA declaration,",
                 "or independent non-model forensic/provenance support,",
-                "or calibrated multi-model consensus with no model voting real/human-origin.",
+                "or unusually strong, tightly aligned multi-model consensus with no model voting real/human-origin.",
             ],
             "false_positive_controls": [
                 "Raw model scores are reliability-weighted before aggregation.",
+                "Uncorroborated model-only suspicion is capped instead of being treated as proof.",
+                "Camera-like JPEG/container evidence lowers the final AI probability unless independent AI evidence exists.",
                 "Detector disagreement and real/human votes force abstention.",
                 "Portrait-specialist models only run after a portrait-likelihood gate.",
                 "Low-quality crops, screenshots, and compressed exports cap confidence.",

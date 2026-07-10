@@ -124,17 +124,18 @@ def test_model_label_mapping_handles_human_artificial_labels() -> None:
 def test_model_ensemble_signal_summarizes_votes() -> None:
     signal = model_ensemble_signal(
         [
-            DetectorSignal("hf:a", "ok", "model_likely_ai_generated", 0.94, None, "medium", [], 0.55),
-            DetectorSignal("hf:b", "ok", "model_likely_ai_generated", 0.88, None, "medium", [], 0.55),
+            DetectorSignal("hf:a", "ok", "model_likely_ai_generated", 0.96, None, "medium", [], 0.55),
+            DetectorSignal("hf:b", "ok", "model_likely_ai_generated", 0.92, None, "medium", [], 0.55),
+            DetectorSignal("hf:c", "ok", "model_likely_ai_generated", 0.90, None, "medium", [], 0.55),
         ]
     )
 
     assert signal.label == "ensemble_likely_ai_generated"
     assert signal.confidence == "high"
-    assert signal.ai_probability == pytest.approx(0.91)
+    assert signal.ai_probability == pytest.approx(0.9267)
 
 
-def test_model_ensemble_accepts_larger_leaning_ai_consensus() -> None:
+def test_model_ensemble_rejects_soft_leaning_ai_consensus() -> None:
     signal = model_ensemble_signal(
         [
             DetectorSignal("hf:a", "ok", "model_likely_ai_generated", 0.99, None, "medium", [], 0.55),
@@ -143,8 +144,8 @@ def test_model_ensemble_accepts_larger_leaning_ai_consensus() -> None:
         ]
     )
 
-    assert signal.label == "ensemble_likely_ai_generated"
-    assert signal.confidence == "medium"
+    assert signal.label == "ensemble_inconclusive"
+    assert signal.confidence == "low"
     assert signal.ai_probability == pytest.approx(0.7667)
 
 
@@ -198,29 +199,55 @@ def test_aggregate_verdict_requires_independent_support_for_two_model_ai_claim()
 
     assert verdict["label"] == "inconclusive"
     assert verdict["confidence"] == "low"
-    assert verdict["ai_probability"] <= 0.64
+    assert verdict["ai_probability"] <= 0.55
     assert any("independent metadata" in item for item in verdict["rationale"])
 
 
-def test_aggregate_verdict_allows_larger_model_consensus_without_real_vote() -> None:
+def test_aggregate_verdict_allows_overwhelming_model_consensus_without_real_vote() -> None:
     detectors = [
         DetectorSignal("metadata_provenance", "ok", "inconclusive", 0.5, 0.25, "low", ["No strong metadata signal."], 0.22),
         DetectorSignal("compression_noise_forensics", "ok", "no_strong_forensic_signal", 0.36, 0.29, "low", ["Weak forensic signal."], 0.28),
-        DetectorSignal("hf:a", "ok", "model_likely_ai_generated", 0.99, None, "medium", ["a"], 0.55),
-        DetectorSignal("hf:b", "ok", "model_inconclusive", 0.69, None, "medium", ["b"], 0.55),
-        DetectorSignal("hf:c", "ok", "model_inconclusive", 0.62, None, "medium", ["c"], 0.55),
-        DetectorSignal("open_source_model_ensemble", "ok", "ensemble_likely_ai_generated", 0.7667, None, "medium", ["consensus"], 0.9),
+        DetectorSignal("hf:a", "ok", "model_likely_ai_generated", 0.97, None, "medium", ["a"], 0.55),
+        DetectorSignal("hf:b", "ok", "model_likely_ai_generated", 0.94, None, "medium", ["b"], 0.55),
+        DetectorSignal("hf:c", "ok", "model_likely_ai_generated", 0.92, None, "medium", ["c"], 0.55),
+        DetectorSignal("open_source_model_ensemble", "ok", "ensemble_likely_ai_generated", 0.9433, None, "high", ["consensus"], 0.9),
     ]
     verdict = aggregate_verdict(
         detectors,
-        metadata={"generative_markers": [], "has_exif": False},
+        metadata={"generative_markers": [], "has_exif": False, "format": "PNG"},
         c2pa={"claim": None},
         forensics={"artificiality_score": 0.06, "manipulation_score": 0.29},
     )
 
     assert verdict["label"] == "likely_ai_generated"
     assert verdict["confidence"] == "medium"
-    assert verdict["ai_probability"] == pytest.approx(0.7667)
+    assert verdict["ai_probability"] == pytest.approx(0.72)
+
+
+def test_aggregate_verdict_caps_camera_like_real_photo_even_with_model_consensus() -> None:
+    detectors = [
+        DetectorSignal("metadata_provenance", "ok", "camera_metadata_present", 0.35, 0.25, "low", ["EXIF"], 0.22),
+        DetectorSignal("compression_noise_forensics", "ok", "no_strong_forensic_signal", 0.36, 0.29, "low", ["Weak forensic signal."], 0.28),
+        DetectorSignal("hf:a", "ok", "model_likely_ai_generated", 0.97, None, "medium", ["a"], 0.55),
+        DetectorSignal("hf:b", "ok", "model_likely_ai_generated", 0.94, None, "medium", ["b"], 0.55),
+        DetectorSignal("hf:c", "ok", "model_likely_ai_generated", 0.92, None, "medium", ["c"], 0.55),
+        DetectorSignal("open_source_model_ensemble", "ok", "ensemble_likely_ai_generated", 0.9433, None, "high", ["consensus"], 0.9),
+    ]
+    verdict = aggregate_verdict(
+        detectors,
+        metadata={"generative_markers": [], "has_exif": True, "format": "JPEG"},
+        c2pa={"claim": None},
+        forensics={
+            "artificiality_score": 0.06,
+            "manipulation_score": 0.29,
+            "noise": {"tile_variance_mean": 240.0, "low_noise_hint": 0.0},
+            "entropy": 6.5,
+        },
+    )
+
+    assert verdict["label"] != "likely_ai_generated"
+    assert verdict["ai_probability"] <= 0.48
+    assert any("real-photo false-positive guard" in item for item in verdict["rationale"])
 
 
 def test_aggregate_verdict_uses_portrait_specialist_to_reduce_false_positive() -> None:
