@@ -1255,7 +1255,7 @@ def aggregate_verdict(
     )
     portrait_real_override = (
         portrait_real_support
-        and model_real_votes >= model_ai_votes
+        and (model_real_votes > model_ai_votes or camera_like_real_prior or metadata.get("has_exif"))
         and model_disagreement >= 0.5
         and not non_model_ai_support
         and quality_risk < 0.55
