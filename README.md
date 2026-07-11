@@ -21,7 +21,7 @@ The first version is intentionally cautious: it reports probabilities and eviden
 Each completed analysis now includes:
 
 - A victim-friendly verdict with confidence, AI evidence score, manipulation evidence, and cross-layer disagreement.
-- A mixture-of-experts opinion ledger covering the visual ensemble, portrait specialist, provenance, forensic residuals, input quality, and safety arbiter.
+- A mixture-of-experts opinion ledger covering the three-view broad primary, two counter-models, provenance, forensic residuals, input quality, and safety arbiter.
 - A decision summary that separates primary drivers, counter-evidence, uncertainty factors, and evidence that would improve confidence.
 - An analytical layer ledger covering metadata/provenance, visual model consensus, luminance, chroma, edge geometry, noise residual, compression/ELA, frequency spectrum, and regional tile anomalies.
 - An abstract 4x4 region evidence map. The map shows relative anomaly severity without rendering the uploaded image in the report.

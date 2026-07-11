@@ -1673,7 +1673,7 @@ def build_explainability(
                 "Camera-like JPEG/container evidence lowers the final AI evidence score unless independent AI evidence exists.",
                 "Detector disagreement and real/human votes force abstention.",
                 "A model-only claim needs either unanimous strong votes or broad-primary support aligned with every counter-expert.",
-                "Portrait-specialist models only run after a portrait-likelihood gate.",
+                "The broad primary must remain stable across the original, center-crop, and controlled JPEG views.",
                 "Low-quality crops, screenshots, and compressed exports cap confidence.",
             ],
             "input_quality": forensics.get("quality", {}),

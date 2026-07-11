@@ -19,7 +19,6 @@ import {
   Lock,
   KeyRound,
   RefreshCw,
-  Server,
   ShieldCheck,
   ShieldAlert,
   Trash2,
@@ -40,49 +39,49 @@ const verdictCopy = {
 
 const architectureStages = [
   {
-    title: 'Input Boundary',
-    detail: 'Upload or public URL, consent gate, type limits, SSRF protection, encrypted temporary media.',
-    checks: ['Consent and file validation', 'Public URL fetch restrictions', 'TTL cleanup policy'],
+    title: 'Private Intake',
+    detail: 'Upload or public URL, consent gate, MIME validation, SSRF protection, and encrypted temporary media.',
+    checks: ['15 MB and pixel limits', 'Public URL restrictions', '15-minute media TTL'],
     icon: Lock,
   },
   {
-    title: 'Evidence Layers',
-    detail: 'EXIF/XMP, C2PA, hashes, compression, noise, frequency, and regional anomaly maps.',
-    checks: ['Metadata and provenance', 'Pixel/residual decomposition', '4x4 regional evidence map'],
-    icon: Layers3,
+    title: 'Provenance First',
+    detail: 'EXIF/XMP, C2PA content credentials, software markers, source context, and cryptographic hashes.',
+    checks: ['Missing metadata stays neutral', 'C2PA claims are verified', 'GPS is redacted in reports'],
+    icon: Database,
   },
   {
-    title: 'Mixture Of Experts',
-    detail: 'Generic detectors, portrait-gated specialist, provenance expert, and forensic residual expert.',
-    checks: ['Reliability-weighted detector votes', 'Portrait gate before specialist model', 'Disagreement tracking'],
+    title: 'Calibrated MoE',
+    detail: 'Community Forensics runs across three image views, then two independent models provide counter-opinions.',
+    checks: ['Model-specific thresholds', 'Three-view stability check', 'Raw logits never equal truth'],
     icon: BrainCircuit,
   },
   {
     title: 'Safety Arbiter',
-    detail: 'Reliability weighting, disagreement handling, confidence caps, and abstention before accusation.',
-    checks: ['False-positive controls', 'Low-quality confidence caps', 'Inconclusive when evidence is weak'],
+    detail: 'Calibrated stances are combined with provenance and forensic counter-evidence before any verdict is emitted.',
+    checks: ['Primary-anchored consensus', 'Real-vote false-positive guard', 'Abstention when evidence conflicts'],
     icon: ShieldAlert,
   },
   {
-    title: 'Report Export',
-    detail: 'Victim-friendly summary, JSON/PDF appendix, reproducibility notes, and early deletion.',
-    checks: ['Plain-language decision summary', 'Technical appendix', 'Delete analysis endpoint'],
+    title: 'Evidence Report',
+    detail: 'A victim-friendly summary and technical PDF/JSON ledger preserve the reasoning, caveats, and reproducibility data.',
+    checks: ['Decision and counter-evidence', 'Model and layer ledgers', 'Early deletion endpoint'],
     icon: FileText,
   },
 ];
 
 const expertPanels = [
   {
-    title: 'Visual Ensemble',
-    detail: 'Three generic AI-image detectors produce calibrated votes instead of a single raw score.',
-    signals: ['AI/real vote count', 'Weighted average', 'Model disagreement'],
-    guardrail: 'Real/human votes and high disagreement force caution.',
+    title: 'Broad Primary',
+    detail: 'Community Forensics checks the original, a 92% center crop, and a controlled JPEG view.',
+    signals: ['Three-view median', 'Transform stability', 'Broad generator coverage'],
+    guardrail: 'A stable primary score still cannot decide the verdict alone.',
   },
   {
-    title: 'Portrait Specialist',
-    detail: 'A specialist detector is used only when the image looks like a portrait.',
-    signals: ['Portrait likelihood', 'Central/side skin-tone ratio', 'Specialist skip reason'],
-    guardrail: 'Prevents portrait-only models from judging unrelated images.',
+    title: 'Counter-Models',
+    detail: 'Two independently trained classifiers challenge the primary with different data and decision boundaries.',
+    signals: ['Hard AI vote', 'Real/human vote', 'Abstention-band vote'],
+    guardrail: 'A real vote or strong disagreement blocks an overconfident accusation.',
   },
   {
     title: 'Forensic Residuals',
@@ -100,28 +99,22 @@ const expertPanels = [
 
 const moeExperts = [
   {
-    title: 'Generic Detector A',
-    detail: 'Broad AI-vs-real image classifier. Strong synthetic score is useful but never trusted alone.',
-    output: 'AI evidence score + label',
+    title: 'Community Forensics',
+    detail: 'Broad ViT primary trained on a highly diverse synthetic-image corpus and evaluated across three views.',
+    output: 'Primary stance + stability',
     icon: Cpu,
   },
   {
-    title: 'Generic Detector B',
-    detail: 'Independent classifier with different calibration thresholds and lower reliability weight.',
-    output: 'Second opinion',
+    title: 'Ateeqq Counter-Model',
+    detail: 'Independent visual classifier with a strict AI threshold and reduced reliability weight.',
+    output: 'Hard AI / real / abstain',
     icon: BrainCircuit,
   },
   {
-    title: 'Generic Detector C',
-    detail: 'Distilled fake-image detector used to widen model diversity and catch generator artifacts.',
-    output: 'Tie-break signal',
+    title: 'Distilled Counter-Model',
+    detail: 'A lightweight detector with a different boundary that widens model diversity.',
+    output: 'Independent counter-opinion',
     icon: Gauge,
-  },
-  {
-    title: 'Portrait Specialist',
-    detail: 'Runs only after the portrait gate says the image is portrait-like enough.',
-    output: 'Portrait-only expert',
-    icon: ShieldAlert,
   },
   {
     title: 'Forensic Expert',
@@ -138,18 +131,18 @@ const moeExperts = [
 ];
 
 const moeRules = [
-  'Portrait specialist is skipped unless portrait likelihood clears the gate.',
-  'Each detector score is converted into a calibrated stance: AI, real, or inconclusive.',
-  'Reliability weights reduce overconfident or historically noisy models.',
-  'Real/human votes and detector disagreement can force an inconclusive result.',
-  'The safety arbiter only emits a strong verdict when enough independent evidence agrees.',
+  'The broad primary must remain stable across original, crop, and JPEG views.',
+  'Each raw score enters a model-specific AI, real, or abstention band.',
+  'Primary-anchored model-only consensus requires every counter-expert to lean AI.',
+  'A real/human vote, poor input quality, or disagreement lowers the evidence score.',
+  'The safety arbiter preserves inconclusive when independent evidence does not agree.',
 ];
 
 const deploymentControls = [
   {
     title: 'Ephemeral Storage',
     detail: 'Encrypted temp media, short TTLs, early delete endpoint, no raw media returned.',
-    checks: ['24-hour default expiry', 'No media in logs', 'User-triggered deletion'],
+    checks: ['15-minute raw-media TTL', '24-hour job/report metadata', 'User-triggered deletion'],
   },
   {
     title: 'Public Safety',
@@ -157,14 +150,14 @@ const deploymentControls = [
     checks: ['Public links only', 'No identity attribution', 'Sensitive-preview blur'],
   },
   {
-    title: 'Production Guardrails',
-    detail: 'PostgreSQL, Redis/RQ, rate limits, audit hashing, readiness checks, security headers.',
-    checks: ['Background workers', 'Health/ready endpoints', 'Per-IP rate limiting'],
+    title: 'Runtime Guardrails',
+    detail: 'Rate limits, privacy-safe audit identifiers, readiness checks, security headers, and background execution.',
+    checks: ['Health and readiness probes', 'Per-client rate limiting', 'No raw media in logs'],
   },
   {
-    title: 'Calibration Gate',
-    detail: 'Golden-set benchmark blocks launch when false positives or high-confidence errors fail gates.',
-    checks: ['Real-photo controls', 'AI-image controls', 'Inconclusive threshold review'],
+    title: 'Scale Profile',
+    detail: 'The same API supports PostgreSQL and Redis/RQ when deployed across multiple workers and instances.',
+    checks: ['Server database validation', 'Queue-backed workers', 'Deployment-time safety checks'],
   },
 ];
 
@@ -182,9 +175,9 @@ const reportFeatures = [
     icon: Layers3,
   },
   {
-    title: 'Expert Opinions',
-    detail: 'Visual ensemble, portrait specialist, forensic residuals, provenance, and safety arbiter votes.',
-    includes: ['Opinion stance', 'Confidence level', 'Supporting/counter evidence'],
+    title: 'Model Arbitration',
+    detail: 'Primary and counter-model scores, transform stability, calibrated stances, disagreement, and arbiter policy.',
+    includes: ['Raw and calibrated scores', 'Primary-anchored alignment', 'Abstention rationale'],
     icon: BrainCircuit,
   },
   {
@@ -196,9 +189,17 @@ const reportFeatures = [
 ];
 
 const heroHighlights = [
-  ['Explainable', 'Every verdict has model, metadata, forensic, and uncertainty evidence.'],
-  ['Victim-safe', 'The arbiter abstains when evidence is weak instead of overclaiming.'],
-  ['Private', 'Media is ephemeral, blurred by default, and never used for identity search.'],
+  ['Calibrated', 'Model-specific gates turn raw logits into AI, real, or abstain stances.'],
+  ['Victim-safe', 'The arbiter preserves uncertainty instead of turning weak signals into accusations.'],
+  ['Private', 'Raw media expires after 15 minutes and is never used for face or identity search.'],
+];
+
+const methodFacts = [
+  ['3 views', 'Primary stability check', Cpu],
+  ['3 models', 'One primary, two counter-experts', BrainCircuit],
+  ['10 layers', 'Provenance, pixels, residuals, regions', Layers3],
+  ['15 min', 'Raw-media deletion window', Lock],
+  ['PDF + JSON', 'Human and machine-readable evidence', FileText],
 ];
 
 function App() {
@@ -497,11 +498,17 @@ function LandingPage() {
         </nav>
         <div className="hero-content">
           <div className="hero-copy">
+            <div className="hero-status">
+              <span />
+              <strong>Public analyzer deployed</strong>
+              <em>Evidence score, not certainty</em>
+            </div>
             <p className="eyebrow hero-eyebrow">Public evidence triage for synthetic media abuse</p>
             <h1>AI Deepfake Analyzer</h1>
             <p>
-              A privacy-first authenticity platform that explains every verdict through calibrated model opinions,
-              forensic layers, provenance checks, and victim-safe abstention.
+              A privacy-first authenticity platform that combines a multi-view visual ensemble, provenance checks,
+              pixel forensics, and a false-positive-aware safety arbiter. Every result shows what supported it,
+              what contradicted it, and why the system may still be wrong.
             </p>
             <div className="hero-actions">
               <a className="hero-primary" href="#analyzer">
@@ -528,10 +535,29 @@ function LandingPage() {
         </div>
       </section>
 
+      <section className="method-strip" aria-label="Current analysis method">
+        <div className="method-strip-inner">
+          {methodFacts.map(([value, label, icon]) => {
+            const FactIcon = icon;
+            return (
+              <article key={value}>
+                <FactIcon size={18} />
+                <strong>{value}</strong>
+                <span>{label}</span>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="landing-band architecture-band" id="architecture">
         <div className="section-head">
-          <p className="eyebrow">Layered pipeline</p>
-          <h2>Evidence moves through separate, explainable stages before the final verdict.</h2>
+          <p className="eyebrow">System architecture</p>
+          <h2>One image enters. Independent evidence lanes return to a calibrated safety arbiter.</h2>
+          <p>
+            Provenance, visual models, and low-level forensics are deliberately separated so one noisy family of
+            signals cannot silently dominate the conclusion.
+          </p>
         </div>
         <ArchitectureFlowchart />
         <div className="pipeline-grid">
@@ -555,11 +581,11 @@ function LandingPage() {
 
       <section className="landing-band expert-band" id="experts">
         <div className="section-head">
-          <p className="eyebrow">Mixture of experts</p>
-          <h2>Raw model confidence is not trusted alone.</h2>
+          <p className="eyebrow">Calibrated mixture of experts</p>
+          <h2>Raw model outputs are converted into stances before they can influence a person.</h2>
           <p>
-            Each expert produces an opinion, and the safety arbiter decides whether the evidence is strong enough
-            for likely real, likely AI-generated, likely manipulated, or inconclusive.
+            The primary detector checks three transformed views. Two counter-models challenge it, while provenance
+            and forensic experts contribute independent evidence. The arbiter can still abstain.
           </p>
         </div>
         <MoEFlowDiagram />
@@ -585,10 +611,10 @@ function LandingPage() {
           <div>
             <div className="section-head">
               <p className="eyebrow">Downloadable reports</p>
-              <h2>Every analysis becomes a readable report and a technical evidence package.</h2>
+              <h2>Every result becomes a decision brief and a reproducible technical evidence package.</h2>
               <p>
-                The public view is calm and victim-friendly. The appendix is detailed enough for reviewers,
-                platform moderators, and technical helpers to understand how the conclusion was reached.
+                The six-section PDF begins with a victim-friendly summary, then exposes calibration, expert votes,
+                layer evidence, the regional map, file facts, limitations, and responsible next steps.
               </p>
             </div>
             <div className="report-feature-grid">
@@ -621,8 +647,12 @@ function LandingPage() {
 
       <section className="landing-band deployment-band" id="deployment">
         <div className="section-head">
-          <p className="eyebrow">Public launch posture</p>
-          <h2>Built for sensitive-media handling, not casual image guessing.</h2>
+          <p className="eyebrow">Public deployment posture</p>
+          <h2>Designed for sensitive evidence handling, with a clear path from public beta to multi-worker scale.</h2>
+          <p>
+            The current public runtime enforces privacy, limits, health checks, and deletion. PostgreSQL and Redis/RQ
+            are supported for a scaled deployment, but the interface never claims that pixels alone prove authenticity.
+          </p>
         </div>
         <div className="deployment-grid">
           {deploymentControls.map((control) => (
@@ -653,14 +683,14 @@ function MoEFlowDiagram() {
           <span>01</span>
           <ImageUp size={24} />
           <h3>Preprocess</h3>
-          <p>Resize safely, inspect quality, compute hashes, and prepare model-ready inputs.</p>
+          <p>Validate, normalize color, measure quality risk, compute hashes, and prepare independent evidence inputs.</p>
         </div>
 
         <div className="moe-stage-card moe-gate-card">
           <span>02</span>
           <Gauge size={24} />
-          <h3>Routing Gate</h3>
-          <p>Checks portrait likelihood, input quality, model availability, and safe thresholds.</p>
+          <h3>Multi-view Gate</h3>
+          <p>Create original, 92% center-crop, and JPEG-85 views for the broad primary stability check.</p>
         </div>
 
         <section className="moe-expert-panel" aria-label="Expert detector panel">
@@ -668,7 +698,7 @@ function MoEFlowDiagram() {
             <span>03</span>
             <div>
               <h3>Expert Panel</h3>
-              <p>Parallel opinions fan out, then return as calibrated evidence.</p>
+              <p>One broad primary, two counter-models, and independent forensic and provenance experts.</p>
             </div>
           </div>
           <div className="moe-expert-stack">
@@ -691,15 +721,15 @@ function MoEFlowDiagram() {
         <div className="moe-stage-card moe-normalizer-card">
           <span>04</span>
           <BadgeCheck size={24} />
-          <h3>Score Normalizer</h3>
-          <p>Converts raw labels into calibrated stances, weights reliability, and records disagreement.</p>
+          <h3>Stance Calibrator</h3>
+          <p>Apply per-model AI/real thresholds. Scores in between become abstentions, then reliability weights are applied.</p>
         </div>
 
         <div className="moe-stage-card danger moe-arbiter-card">
           <span>05</span>
           <ShieldAlert size={24} />
           <h3>Safety Arbiter</h3>
-          <p>Combines weighted opinions with metadata and forensic counter-evidence before deciding.</p>
+          <p>Require provenance, independent support, unanimous strong votes, or primary-anchored alignment before a strong AI claim.</p>
         </div>
 
         <div className="moe-verdict-stack">
@@ -722,23 +752,33 @@ function MoEFlowDiagram() {
 }
 
 function ArchitectureFlowchart() {
-  const sideLayers = [
-    ['Metadata', 'EXIF/XMP, software markers, GPS exposure', Database],
-    ['C2PA', 'Content credentials and provenance claims', BadgeCheck],
-    ['Forensics', 'ELA, noise, frequency, regional tile map', Layers3],
-    ['Detector Panel', 'Generic models plus gated specialists', BrainCircuit],
+  const laneGroups = [
+    ['Provenance lane', [
+      ['Metadata', 'EXIF/XMP, software markers, GPS redaction', Database],
+      ['C2PA', 'Content credentials and signed generation claims', BadgeCheck],
+    ]],
+    ['Visual-model lane', [
+      ['Broad Primary', 'Community Forensics across three stable views', Cpu],
+      ['Counter-Models', 'Ateeqq plus an independent distilled classifier', BrainCircuit],
+    ]],
+    ['Forensic lane', [
+      ['Pixel Residuals', 'ELA, noise, luminance, chroma, edge, frequency', Layers3],
+      ['Regional Map', 'A 4x4 anomaly grid with explicit limitations', Gauge],
+    ]],
   ];
   const flowSteps = [
-    ['01', 'Submit', 'Upload or public URL enters the consent and safety boundary.', ImageUp],
-    ['02', 'Input Boundary', 'Validate file type, block unsafe URLs, encrypt temporary media, enforce TTL.', Lock],
-    ['03', 'Evidence Bus', 'Split one media packet into independent provenance, forensic, and model lanes.', Layers3],
-    ['04', 'Safety Arbiter', 'Weight opinions, cap confidence, and abstain when evidence is weak.', ShieldAlert],
-    ['05', 'Report', 'Create a victim summary plus JSON/PDF technical appendix.', FileText],
+    ['01', 'Private Intake', 'Consent, type and pixel limits, SSRF defense, encryption, and short media TTL.', Lock],
+    ['02', 'Evidence Bus', 'Fork the validated packet into provenance, model, and forensic lanes.', Workflow],
+    ['03', 'Expert Routing', 'Run only the evidence methods that are available and appropriate for this file.', BrainCircuit],
+    ['04', 'Safety Arbiter', 'Calibrate stances, record disagreement, cap scores, or abstain.', ShieldAlert],
+    ['05', 'Evidence Report', 'Return a plain-language verdict plus PDF and JSON technical ledgers.', FileText],
   ];
 
   return (
     <div className="architecture-map" aria-label="Deepfake analysis architecture flow">
       <div className="architecture-flow-grid">
+        <span className="flow-packet packet-one" />
+        <span className="flow-packet packet-two" />
         {flowSteps.map(([index, title, detail, icon]) => {
           const StepIcon = icon;
           return (
@@ -753,37 +793,23 @@ function ArchitectureFlowchart() {
       </div>
 
       <div className="evidence-lanes">
-        <section className="layer-cluster">
-          <span className="cluster-label">Provenance lane</span>
-          {sideLayers.slice(0, 2).map(([title, detail, icon]) => {
-            const LayerIcon = icon;
-            return (
-              <article className="layer-chip" key={title}>
-                <LayerIcon size={18} />
-                <div>
-                  <strong>{title}</strong>
-                  <span>{detail}</span>
-                </div>
-              </article>
-            );
-          })}
-        </section>
-
-        <section className="layer-cluster">
-          <span className="cluster-label">Analysis lane</span>
-          {sideLayers.slice(2).map(([title, detail, icon]) => {
-            const LayerIcon = icon;
-            return (
-              <article className="layer-chip" key={title}>
-                <LayerIcon size={18} />
-                <div>
-                  <strong>{title}</strong>
-                  <span>{detail}</span>
-                </div>
-              </article>
-            );
-          })}
-        </section>
+        {laneGroups.map(([lane, items]) => (
+          <section className="layer-cluster" key={lane}>
+            <span className="cluster-label">{lane}</span>
+            {items.map(([title, detail, icon]) => {
+              const LayerIcon = icon;
+              return (
+                <article className="layer-chip" key={title}>
+                  <LayerIcon size={18} />
+                  <div>
+                    <strong>{title}</strong>
+                    <span>{detail}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+        ))}
 
         <div className="decision-stack">
           <span>likely real</span>
@@ -810,7 +836,7 @@ function ReportPreviewScene() {
           </div>
           <div className="report-verdict-preview">
             <p>Likely AI generated</p>
-            <strong>79%</strong>
+            <strong>72%</strong>
             <span>medium confidence</span>
           </div>
           <div className="report-bars">
@@ -819,7 +845,7 @@ function ReportPreviewScene() {
             <span />
           </div>
           <div className="report-layer-list">
-            {['Model consensus', 'Metadata and C2PA', 'Noise and ELA', 'Regional anomaly map'].map((item, index) => (
+            {['Primary-anchored alignment', 'Metadata and C2PA', 'Cross-layer disagreement', 'Regional anomaly map'].map((item, index) => (
               <div className="report-layer-row" style={{ '--index': index }} key={item}>
                 <i />
                 <span>{item}</span>
@@ -840,12 +866,12 @@ function ReportPreviewScene() {
 
 function ArchitectureScene() {
   const nodes = [
-    ['Metadata', 'EXIF/XMP scan', Database],
-    ['C2PA', 'Credential check', BadgeCheck],
-    ['Forensics', 'Noise and ELA', Layers3],
-    ['Models', 'MoE detector vote', BrainCircuit],
-    ['Arbiter', 'Confidence gate', Gauge],
-    ['Report', 'JSON/PDF export', FileText],
+    ['Primary', '3-view stability', Cpu],
+    ['Counters', '2 independent votes', BrainCircuit],
+    ['Provenance', 'EXIF/XMP + C2PA', Database],
+    ['Forensics', '10 evidence layers', Layers3],
+    ['Arbiter', 'Abstention gate', Gauge],
+    ['Report', 'PDF + JSON ledger', FileText],
   ];
   return (
     <div className="architecture-scene" aria-hidden="true">
@@ -857,7 +883,7 @@ function ArchitectureScene() {
           <span />
           <span />
           <span />
-          <strong>Layered analysis</strong>
+          <strong>Calibrated evidence pipeline</strong>
         </div>
         <div className="workflow-body">
           <div className="media-pane">
@@ -891,11 +917,11 @@ function ArchitectureScene() {
         </div>
       </div>
       <div className="telemetry-strip">
-        <span><Database size={16} /> Hash</span>
-        <span><Cpu size={16} /> Models</span>
-        <span><Gauge size={16} /> Gate</span>
-        <span><BadgeCheck size={16} /> Report</span>
-        <span><Server size={16} /> Worker</span>
+        <span><Cpu size={16} /> 3 views</span>
+        <span><BrainCircuit size={16} /> 3 models</span>
+        <span><Layers3 size={16} /> 10 layers</span>
+        <span><Lock size={16} /> 15 min TTL</span>
+        <span><FileText size={16} /> PDF + JSON</span>
       </div>
     </div>
   );
