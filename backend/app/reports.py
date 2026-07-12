@@ -126,10 +126,19 @@ def build_pdf_report(result: dict[str, Any]) -> bytes:
         Spacer(1, 0.12 * inch),
         _model_consensus_table(explainability.get("model_consensus") or {}, styles),
         Spacer(1, 0.16 * inch),
+        Paragraph("Model Stability And Calibration", styles["h2"]),
+        _model_stability_table(explainability.get("model_consensus") or {}, styles),
+        Spacer(1, 0.16 * inch),
         Paragraph("Expert Opinions", styles["h2"]),
         _expert_table(explainability.get("expert_opinions") or [], styles),
-        Spacer(1, 0.16 * inch),
-        Paragraph("Calibration And Abstention Policy", styles["h2"]),
+        PageBreak(),
+        Paragraph("CALIBRATION AND ABSTENTION", styles["eyebrow"]),
+        Paragraph("When the system refuses to overclaim", styles["section_title"]),
+        Paragraph(
+            "The arbiter applies model-specific gates, input-quality penalties, real-photo protections, and an explicit abstention policy before a label can be emitted.",
+            styles["lead"],
+        ),
+        Spacer(1, 0.12 * inch),
         _calibration_table(decision_standard, styles),
         Spacer(1, 0.14 * inch),
         _callout(
@@ -138,6 +147,9 @@ def build_pdf_report(result: dict[str, Any]) -> bytes:
             styles,
             AMBER_LIGHT,
         ),
+        Spacer(1, 0.18 * inch),
+        Paragraph("Explanation Contract", styles["h2"]),
+        _explanation_contract_table(explainability.get("explanation_contract") or {}, styles),
         PageBreak(),
         Paragraph("LAYER-BY-LAYER EXPLAINABILITY", styles["eyebrow"]),
         Paragraph("Independent evidence ledger", styles["section_title"]),
@@ -146,6 +158,9 @@ def build_pdf_report(result: dict[str, Any]) -> bytes:
             styles["lead"],
         ),
         Spacer(1, 0.12 * inch),
+        Paragraph("What Actually Influenced The Arbiter", styles["h2"]),
+        _attribution_table(explainability.get("decision_attribution") or [], styles),
+        Spacer(1, 0.16 * inch),
         _layer_ledger(result.get("analytical_layers") or [], styles),
         Spacer(1, 0.16 * inch),
         Paragraph("Decision Trace", styles["h2"]),
@@ -308,10 +323,85 @@ def _model_consensus_table(consensus: dict[str, Any], styles: dict[str, Paragrap
         ("Primary-anchored alignment", "yes" if consensus.get("primary_anchored_alignment") else "no"),
         ("Calibrated model evidence", _percent_or_na(consensus.get("average_ai_probability"))),
         ("Raw output average", _percent_or_na(consensus.get("raw_average_ai_probability"))),
-        ("Raw disagreement range", _percent_or_na(consensus.get("disagreement_range"))),
+        ("Calibrated stance disagreement", _percent_or_na(consensus.get("calibrated_stance_disagreement"))),
+        ("Raw score range (diagnostic)", _percent_or_na(consensus.get("raw_score_range"))),
         ("Ensemble stance", str(consensus.get("ensemble_label") or "not available").replace("_", " ")),
     ]
     return _two_column_table(rows, styles)
+
+
+def _model_stability_table(consensus: dict[str, Any], styles: dict[str, ParagraphStyle]) -> Table:
+    data = [
+        [
+            Paragraph(text, styles["table_header"])
+            for text in ("Model", "Calibrated stance", "Views", "Stability", "AI / real gates", "Weight")
+        ]
+    ]
+    for model in consensus.get("models") or []:
+        details = model.get("details") or {}
+        model_name = str(model.get("name") or "").removeprefix("hf:")
+        stability = (
+            f"range {_percent_or_na(details.get('stability_range'))}; "
+            f"MAD {_percent_or_na(details.get('median_absolute_deviation'))}"
+            if details.get("view_count")
+            else "single view"
+        )
+        gates = f"{_percent_or_na(details.get('ai_threshold'))} / {_percent_or_na(details.get('real_threshold'))}"
+        data.append(
+            [
+                Paragraph(_safe_text(model_name), styles["table_bold"]),
+                Paragraph(
+                    f"{_safe_text(str(model.get('label') or '').replace('_', ' '))}<br/>"
+                    f"{_percent_or_na(model.get('calibrated_stance_score'))}",
+                    styles["table"],
+                ),
+                Paragraph(str(details.get("view_count") or 1), styles["table"]),
+                Paragraph(_safe_text(stability), styles["table"]),
+                Paragraph(_safe_text(gates), styles["table"]),
+                Paragraph(f"{float(model.get('reliability_weight') or 0):.2f}", styles["table"]),
+            ]
+        )
+    if len(data) == 1:
+        data.append([Paragraph("No model diagnostics were available.", styles["table"]), "", "", "", "", ""])
+    table = Table(
+        data,
+        colWidths=[1.62 * inch, 1.40 * inch, 0.42 * inch, 1.18 * inch, 1.18 * inch, 0.65 * inch],
+        repeatRows=1,
+        splitByRow=True,
+    )
+    table.setStyle(_base_table_style(header=True))
+    return table
+
+
+def _attribution_table(attributions: list[dict[str, Any]], styles: dict[str, ParagraphStyle]) -> Table:
+    data = [
+        [
+            Paragraph(text, styles["table_header"])
+            for text in ("Source", "Decision role", "Direction", "Influence", "Finding")
+        ]
+    ]
+    for item in attributions:
+        used = "used" if item.get("used_by_arbiter") else "context only"
+        role = f"{str(item.get('role') or '').replace('_', ' ')}<br/><font color='#5b6b80'>{used}</font>"
+        data.append(
+            [
+                Paragraph(_safe_text(item.get("source", "")), styles["table_bold"]),
+                Paragraph(role, styles["table"]),
+                Paragraph(_safe_text(str(item.get("direction") or "neutral").replace("_", " ")), styles["table"]),
+                Paragraph(_percent_or_na(item.get("strength")), styles["table"]),
+                Paragraph(_safe_text(item.get("finding", "")), styles["table"]),
+            ]
+        )
+    if len(data) == 1:
+        data.append([Paragraph("No decision attributions were available.", styles["table"]), "", "", "", ""])
+    table = Table(
+        data,
+        colWidths=[1.42 * inch, 1.12 * inch, 1.08 * inch, 0.62 * inch, 2.21 * inch],
+        repeatRows=1,
+        splitByRow=True,
+    )
+    table.setStyle(_base_table_style(header=True))
+    return table
 
 
 def _expert_table(opinions: list[dict[str, Any]], styles: dict[str, ParagraphStyle]) -> Table:
@@ -346,11 +436,33 @@ def _calibration_table(standard: dict[str, Any], styles: dict[str, ParagraphStyl
     return table
 
 
+def _explanation_contract_table(contract: dict[str, Any], styles: dict[str, ParagraphStyle]) -> Table:
+    arbiter_inputs = contract.get("arbiter_inputs") or []
+    context_layers = contract.get("context_only_layers") or []
+    rows = [
+        ("Score semantics", contract.get("score_semantics") or "Evidence strength, not probability of truth."),
+        ("Arbiter inputs", "; ".join(str(item) for item in arbiter_inputs) or "No decision inputs were recorded."),
+        (
+            "Context-only layers",
+            f"{len(context_layers)} diagnostic layer(s): " + (", ".join(str(item) for item in context_layers) or "none"),
+        ),
+        ("Abstention rule", contract.get("abstention_rule") or "Conflicted evidence remains inconclusive."),
+        ("Human-review boundary", contract.get("human_review_boundary") or "Automated analysis cannot establish legal truth."),
+    ]
+    return _two_column_table(rows, styles)
+
+
 def _layer_ledger(layers: list[dict[str, Any]], styles: dict[str, ParagraphStyle]) -> Table:
     data = [[Paragraph(text, styles["table_header"]) for text in ("Layer", "Conclusion", "AI", "Manip.", "Method and strongest evidence")]]
     for layer in layers:
         evidence = (layer.get("evidence") or ["No finding recorded."])[0]
-        detail = f"{_safe_text(layer.get('method', ''))}<br/><font color='#5b6b80'>{_safe_text(evidence)}</font>"
+        detail = (
+            f"{_safe_text(layer.get('method', ''))}<br/>"
+            f"<font color='#5b6b80'>{_safe_text(evidence)}</font><br/>"
+            f"<font color='#5b6b80'>Role: {_safe_text(str(layer.get('decision_role') or '').replace('_', ' '))}; "
+            f"reliability: {_safe_text(layer.get('reliability', 'none'))}; "
+            f"arbiter: {'used' if layer.get('used_by_arbiter') else 'context only'}.</font>"
+        )
         data.append(
             [
                 Paragraph(_safe_text(layer.get("name", "")), styles["table_bold"]),

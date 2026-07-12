@@ -4,15 +4,14 @@ sdk: docker
 app_port: 8000
 suggested_hardware: cpu-basic
 models:
+  - buildborderless/CommunityForensics-DeepfakeDet-ViT
   - Ateeqq/ai-vs-human-image-detector
-  - dima806/ai_vs_real_image_detection
   - jacoballessio/ai-image-detect-distilled
-  - SadraCoding/SDXL-Deepfake-Detector
 ---
 
 # AI Deepfake Analyzer
 
-Privacy-first MVP for layered image authenticity analysis. The app accepts an image upload or a public URL, runs metadata/provenance/forensic checks plus optional open-source model adapters, and returns a victim-friendly report with a technical appendix.
+Privacy-first public application for layered image authenticity analysis. The app accepts an image upload or a public URL, runs metadata/provenance/forensic checks plus an open-source calibrated model ensemble, and returns a victim-friendly report with a technical appendix.
 
 The first version is intentionally cautious: it reports probabilities and evidence, not certainty. Raw media is encrypted while queued and deleted after analysis.
 
@@ -21,9 +20,9 @@ The first version is intentionally cautious: it reports probabilities and eviden
 Each completed analysis now includes:
 
 - A victim-friendly verdict with confidence, AI evidence score, manipulation evidence, and cross-layer disagreement.
-- A mixture-of-experts opinion ledger covering the three-view broad primary, two counter-models, provenance, forensic residuals, input quality, and safety arbiter.
+- A mixture-of-experts opinion ledger covering the five-view broad primary, two counter-models, provenance, forensic residuals, input quality, and safety arbiter.
 - A decision summary that separates primary drivers, counter-evidence, uncertainty factors, and evidence that would improve confidence.
-- An analytical layer ledger covering metadata/provenance, visual model consensus, luminance, chroma, edge geometry, noise residual, compression/ELA, frequency spectrum, and regional tile anomalies.
+- An 11-layer ledger covering metadata/provenance, visual consensus, model-transform robustness, luminance, chroma, edge geometry, noise residual, compression/ELA, frequency spectrum, and regional tile anomalies. Every layer states its role, reliability, influence, and counterfactual.
 - An abstract 4x4 region evidence map. The map shows relative anomaly severity without rendering the uploaded image in the report.
 - A technical appendix with hashes, detector outputs, reproducibility notes, and redacted metadata summaries. Raw XMP/XML metadata is not stored in reports.
 
@@ -135,7 +134,7 @@ $env:AIDA_HF_MODEL_IDS="buildborderless/CommunityForensics-DeepfakeDet-ViT,Ateeq
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-The default recommended setup uses Community Forensics as the broad primary detector, plus two independently trained counter-experts. The primary runs on the original image, a center crop, and a controlled JPEG recompression. Each model has its own conservative abstention band, and only calibrated stances are combined. Treat the ensemble as one evidence layer, not a guarantee. A `likely_ai_generated` claim requires signed/generative provenance, independent non-model support, or unusually strong multi-model agreement with no real/human vote.
+The default setup uses Community Forensics as the broad primary detector, plus two independently trained counter-experts. The primary runs on the original image, a center crop, controlled JPEG recompression, horizontal mirror, and social-media-style resize. Median, range, MAD, and IQR stability are recorded. Each model has its own conservative abstention band, and only calibrated stances are compared; raw score ranges remain diagnostic because classifier scales are not interchangeable. Treat the ensemble as one evidence layer, not a guarantee. A `likely_ai_generated` claim requires signed/generative provenance, independent non-model support, or unusually strong multi-model agreement with no real/human vote.
 
 ## Accuracy And Calibration Gate
 

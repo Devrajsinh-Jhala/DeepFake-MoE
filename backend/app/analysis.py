@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
@@ -109,6 +109,7 @@ class DetectorSignal:
     confidence: str
     evidence: list[str]
     weight: float
+    details: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -120,6 +121,7 @@ class DetectorSignal:
             "confidence": self.confidence,
             "evidence": self.evidence,
             "weight": self.weight,
+            "details": self.details,
         }
 
 
@@ -373,6 +375,7 @@ def build_analytical_layer_breakdown(
     frequency = _frequency_layer(gray_array)
     tile_anomalies = _tile_anomaly_layer(gray_array, edges)
     model_layer = _model_consensus_layer(detectors)
+    transform_layer = _model_transform_robustness_layer(detectors)
 
     return [
         _evidence_layer(
@@ -418,6 +421,7 @@ def build_analytical_layer_breakdown(
             ],
         ),
         model_layer,
+        transform_layer,
         _evidence_layer(
             layer_id="luminance",
             name="Luminance Layer",
@@ -573,6 +577,35 @@ def _evidence_layer(
     else:
         conclusion = "neutral_or_inconclusive"
 
+    if layer_type in {"container_metadata", "pretrained_model_inference"}:
+        decision_role = "primary_evidence"
+    elif layer_type in {"forensic_residual", "robustness_check"}:
+        decision_role = "guard_or_supporting_evidence"
+    else:
+        decision_role = "review_context_only"
+
+    if conclusion == "supports_ai_generated":
+        direction = "toward_ai_generated"
+    elif conclusion == "supports_real_or_camera_origin":
+        direction = "toward_real_origin"
+    elif conclusion == "supports_manipulation_or_editing":
+        direction = "toward_manipulation"
+    elif conclusion == "weak_anomaly":
+        direction = "weak_anomaly_only"
+    else:
+        direction = "neutral"
+
+    confidence_weight = {"high": 1.0, "medium": 0.72, "low": 0.35, "none": 0.0}.get(confidence, 0.0)
+    directional_distance = max(abs(ai_signal - 0.5) * 2.0, max(0.0, manipulation_signal - 0.5) * 2.0)
+    influence = directional_distance * confidence_weight if decision_role != "review_context_only" else 0.0
+    counterfactual = {
+        "toward_ai_generated": "A lower calibrated model/provenance score or contradictory real-origin evidence would weaken this layer.",
+        "toward_real_origin": "Missing camera-compatible evidence or independent synthetic provenance would weaken this layer.",
+        "toward_manipulation": "A cleaner residual pattern across the original file would weaken this manipulation signal.",
+        "weak_anomaly_only": "The anomaly must repeat across independent methods before it can materially affect the verdict.",
+        "neutral": "Additional original-file provenance or stronger independent model agreement would make this layer informative.",
+    }[direction]
+
     return {
         "id": layer_id,
         "name": name,
@@ -583,6 +616,12 @@ def _evidence_layer(
         "ai_signal": ai_signal,
         "manipulation_signal": manipulation_signal,
         "confidence": confidence,
+        "reliability": confidence,
+        "decision_role": decision_role,
+        "direction": direction,
+        "influence": round(_clamp(influence), 4),
+        "used_by_arbiter": decision_role != "review_context_only",
+        "counterfactual": counterfactual,
         "evidence": evidence,
         "metrics": metrics,
         "limitations": limitations,
@@ -792,8 +831,10 @@ def _model_consensus_layer(detectors: list[DetectorSignal]) -> dict[str, Any]:
 
     ai_votes = sum(detector.label == "model_likely_ai_generated" for detector in model_signals)
     real_votes = sum(detector.label == "model_likely_human_or_real" for detector in model_signals)
-    disagreement = float(max(values) - min(values)) if len(values) >= 2 else 0.0
-    confidence = ensemble.confidence if ensemble else ("medium" if disagreement < 0.35 else "low")
+    calibrated_values = [_calibrated_model_stance(detector) for detector in model_signals]
+    raw_disagreement = float(max(values) - min(values)) if len(values) >= 2 else 0.0
+    stance_disagreement = float(max(calibrated_values) - min(calibrated_values)) if len(calibrated_values) >= 2 else 0.0
+    confidence = ensemble.confidence if ensemble else ("medium" if stance_disagreement < 0.35 else "low")
     average = float(ensemble.ai_probability) if ensemble and ensemble.ai_probability is not None else _weighted_average(
         values,
         [float(detector.weight or DEFAULT_MODEL_PROFILE["weight"]) for detector in model_signals],
@@ -810,7 +851,8 @@ def _model_consensus_layer(detectors: list[DetectorSignal]) -> dict[str, Any]:
         evidence=[
             f"{ai_votes}/{len(values)} models voted AI-generated.",
             f"{real_votes}/{len(values)} models voted real/human-origin.",
-            f"Model disagreement range: {disagreement:.3f}.",
+            f"Calibrated stance disagreement: {stance_disagreement:.3f}.",
+            f"Raw-score range (diagnostic only): {raw_disagreement:.3f}.",
             f"Calibrated model evidence score: {average:.3f}.",
             *[detector.evidence[0] for detector in model_signals if detector.evidence],
         ],
@@ -822,13 +864,15 @@ def _model_consensus_layer(detectors: list[DetectorSignal]) -> dict[str, Any]:
             "average_ai_probability": round(average, 4),
             "score_semantics": "calibrated evidence score",
             "raw_average_ai_probability": round(float(np.mean(values)), 4),
-            "disagreement_range": round(disagreement, 4),
+            "calibrated_stance_disagreement": round(stance_disagreement, 4),
+            "raw_score_range": round(raw_disagreement, 4),
             "model_scores": [
                 {
                     "name": detector.name,
                     "ai_probability": detector.ai_probability,
                     "label": detector.label,
                     "reliability_weight": detector.weight,
+                    "details": detector.details,
                 }
                 for detector in model_signals
             ],
@@ -836,6 +880,69 @@ def _model_consensus_layer(detectors: list[DetectorSignal]) -> dict[str, Any]:
         limitations=[
             "Pretrained detectors can fail on new generators, screenshots, crops, or heavy compression.",
             "This layer is stronger when multiple models agree and weaker when they disagree.",
+        ],
+    )
+
+
+def _model_transform_robustness_layer(detectors: list[DetectorSignal]) -> dict[str, Any]:
+    primary = next(
+        (
+            detector
+            for detector in detectors
+            if detector.name.startswith("hf:")
+            and detector.status == "ok"
+            and _model_profile(detector.name.removeprefix("hf:")).get("expert_group") == "broad_primary"
+        ),
+        None,
+    )
+    details = primary.details if primary else {}
+    view_scores = details.get("view_scores") or []
+    if not primary or not view_scores:
+        return _evidence_layer(
+            layer_id="model_transform_robustness",
+            name="Model Transform Robustness Layer",
+            layer_type="robustness_check",
+            question="Does the broad detector preserve its stance under benign image transformations?",
+            method="Compare the primary model across original, crop, JPEG, mirror, and social-resize views.",
+            ai_signal=0.5,
+            manipulation_signal=0.25,
+            confidence="none",
+            evidence=["Multi-view primary-model diagnostics were unavailable."],
+            metrics={"view_count": 0, "view_scores": []},
+            limitations=[
+                "This layer requires the configured broad primary model.",
+                "Transform stability improves confidence but cannot prove authenticity.",
+            ],
+        )
+
+    stable_enough = bool(details.get("stable_enough"))
+    ai_signal = float(primary.ai_probability or 0.5) if stable_enough else 0.5
+    confidence = "medium" if stable_enough and len(view_scores) >= 5 else "low"
+    return _evidence_layer(
+        layer_id="model_transform_robustness",
+        name="Model Transform Robustness Layer",
+        layer_type="robustness_check",
+        question="Does the broad detector preserve its stance under benign image transformations?",
+        method="Compare the primary model across original, 92% crop, JPEG-85, horizontal flip, and 75% social-resize views.",
+        ai_signal=ai_signal,
+        manipulation_signal=0.25,
+        confidence=confidence,
+        evidence=[
+            f"Primary view median AI score: {float(details.get('median_ai_score') or 0.5):.3f}.",
+            (
+                f"Stability range {float(details.get('stability_range') or 0):.3f}; median absolute deviation "
+                f"{float(details.get('median_absolute_deviation') or 0):.3f}; interquartile range "
+                f"{float(details.get('interquartile_range') or 0):.3f}."
+            ),
+            (
+                f"Consistent view requirement: {details.get('required_consistent_views', 0)} of {len(view_scores)}; "
+                f"stability gate {'passed' if stable_enough else 'did not pass'}."
+            ),
+        ],
+        metrics=details,
+        limitations=[
+            "Benign transformations test robustness, not the semantic truth of the image.",
+            "A consistently wrong model can still appear stable, so this layer never acts alone.",
         ],
     )
 
@@ -1043,10 +1150,16 @@ def _huggingface_detector_for_model(image: Image.Image, model_id: str, portrait_
     scores = [score for _, score in view_scores]
     ai_score = float(np.median(scores))
     stability_range = (max(scores) - min(scores)) if len(scores) >= 2 else 0.0
+    median_absolute_deviation = float(np.median(np.abs(np.asarray(scores) - ai_score))) if len(scores) >= 2 else 0.0
+    interquartile_range = float(np.percentile(scores, 75) - np.percentile(scores, 25)) if len(scores) >= 4 else stability_range
     required_views = max(1, math.ceil(len(scores) * 2 / 3))
     ai_view_votes = sum(score >= float(profile["ai_threshold"]) for score in scores)
     real_view_votes = sum(score <= float(profile["real_threshold"]) for score in scores)
-    stable_enough = stability_range <= float(profile.get("max_view_range", 0.22))
+    stable_enough = (
+        stability_range <= float(profile.get("max_view_range", 0.28))
+        and median_absolute_deviation <= float(profile.get("max_view_mad", 0.09))
+        and interquartile_range <= float(profile.get("max_view_iqr", 0.18))
+    )
 
     if ai_score >= profile["ai_threshold"] and ai_view_votes >= required_views and stable_enough:
         label = "model_likely_ai_generated"
@@ -1055,7 +1168,11 @@ def _huggingface_detector_for_model(image: Image.Image, model_id: str, portrait_
     else:
         label = "model_inconclusive"
 
-    confidence = "medium" if label != "model_inconclusive" and stability_range <= 0.12 else "low"
+    confidence = (
+        "medium"
+        if label != "model_inconclusive" and stability_range <= 0.16 and median_absolute_deviation <= 0.05
+        else "low"
+    )
 
     return DetectorSignal(
         name=name,
@@ -1067,7 +1184,11 @@ def _huggingface_detector_for_model(image: Image.Image, model_id: str, portrait_
         evidence=[
             f"Model {model_id} multi-view median AI score: {ai_score:.3f}.",
             f"Inference views: {'; '.join(output_summaries)}.",
-            f"Transform stability range: {stability_range:.3f}; AI-supporting views {ai_view_votes}/{len(scores)}; real-supporting views {real_view_votes}/{len(scores)}.",
+            (
+                f"Transform stability: range {stability_range:.3f}, median absolute deviation "
+                f"{median_absolute_deviation:.3f}, interquartile range {interquartile_range:.3f}; "
+                f"AI-supporting views {ai_view_votes}/{len(scores)}; real-supporting views {real_view_votes}/{len(scores)}."
+            ),
             (
                 f"Calibration: AI threshold {profile['ai_threshold']:.2f}, real threshold "
                 f"{profile['real_threshold']:.2f}, reliability weight {profile['weight']:.2f}."
@@ -1079,6 +1200,26 @@ def _huggingface_detector_for_model(image: Image.Image, model_id: str, portrait_
             ),
         ],
         weight=float(profile["weight"]),
+        details={
+            "model_id": model_id,
+            "expert_group": profile.get("expert_group", "counter_model"),
+            "score_semantics": "model-specific AI score; interpreted only through this model's calibration bands",
+            "view_scores": [{"view": view_name, "ai_score": round(score, 4)} for view_name, score in view_scores],
+            "view_count": len(view_scores),
+            "median_ai_score": round(ai_score, 4),
+            "stability_range": round(stability_range, 4),
+            "median_absolute_deviation": round(median_absolute_deviation, 4),
+            "interquartile_range": round(interquartile_range, 4),
+            "stable_enough": stable_enough,
+            "required_consistent_views": required_views,
+            "ai_supporting_views": ai_view_votes,
+            "real_supporting_views": real_view_votes,
+            "ai_threshold": float(profile["ai_threshold"]),
+            "real_threshold": float(profile["real_threshold"]),
+            "lean_ai_threshold": float(profile.get("lean_ai_threshold", 0.6)),
+            "reliability_weight": float(profile["weight"]),
+            "calibration_note": profile.get("note", ""),
+        },
     )
 
 
@@ -1101,7 +1242,8 @@ def model_ensemble_signal(signals: list[DetectorSignal]) -> DetectorSignal:
     calibrated_values = [_calibrated_model_stance(signal) for signal in valid_signals]
     average = _weighted_average(calibrated_values, weights)
     raw_average = float(np.mean(values))
-    disagreement = float(max(values) - min(values)) if len(values) >= 2 else 0.0
+    raw_disagreement = float(max(values) - min(values)) if len(values) >= 2 else 0.0
+    stance_disagreement = float(max(calibrated_values) - min(calibrated_values)) if len(calibrated_values) >= 2 else 0.0
     ai_votes = sum(signal.label == "model_likely_ai_generated" for signal in valid_signals)
     lean_ai_votes = sum(
         value >= float(_model_profile(signal.name.removeprefix("hf:")).get("lean_ai_threshold", 0.6))
@@ -1121,15 +1263,15 @@ def model_ensemble_signal(signals: list[DetectorSignal]) -> DetectorSignal:
         and lean_ai_votes == len(values)
         and real_votes == 0
         and raw_average >= 0.74
-        and disagreement <= 0.42
+        and stance_disagreement <= 0.50
     )
-    if len(values) >= 2 and disagreement > 0.45:
+    if real_votes > 0 and ai_votes > 0:
         label = "ensemble_inconclusive"
-    elif len(values) >= 3 and ai_votes == len(values) and min_score >= 0.86 and raw_average >= 0.88 and disagreement <= 0.22:
+    elif len(values) >= 3 and ai_votes == len(values) and min_score >= 0.86 and raw_average >= 0.88 and stance_disagreement <= 0.25:
         label = "ensemble_likely_ai_generated"
     elif aligned_primary_consensus:
         label = "ensemble_likely_ai_generated"
-    elif len(values) >= 4 and lean_ai_votes == len(values) and ai_votes >= len(values) - 1 and real_votes == 0 and min_score >= 0.78 and raw_average >= 0.86 and disagreement <= 0.28:
+    elif len(values) >= 4 and lean_ai_votes == len(values) and ai_votes >= len(values) - 1 and real_votes == 0 and min_score >= 0.78 and raw_average >= 0.86 and stance_disagreement <= 0.32:
         label = "ensemble_likely_ai_generated"
     elif real_votes == len(values) and average <= 0.28:
         label = "ensemble_likely_real"
@@ -1138,9 +1280,9 @@ def model_ensemble_signal(signals: list[DetectorSignal]) -> DetectorSignal:
     else:
         label = "ensemble_inconclusive"
 
-    if label == "ensemble_likely_ai_generated" and disagreement <= 0.18 and len(values) >= 3:
+    if label == "ensemble_likely_ai_generated" and stance_disagreement <= 0.18 and len(values) >= 3:
         confidence = "high"
-    elif label == "ensemble_likely_ai_generated" and disagreement <= 0.42 and real_votes == 0:
+    elif label == "ensemble_likely_ai_generated" and stance_disagreement <= 0.50 and real_votes == 0:
         confidence = "medium"
     else:
         confidence = "low"
@@ -1150,7 +1292,7 @@ def model_ensemble_signal(signals: list[DetectorSignal]) -> DetectorSignal:
         f"{lean_ai_votes}/{len(values)} visual models leaned AI-generated at or above 60%.",
         f"{real_votes}/{len(values)} visual models voted real/human.",
         f"Broad-primary anchored alignment: {'yes' if aligned_primary_consensus else 'no'}.",
-        f"Visual-model disagreement range: {disagreement:.3f}.",
+        f"Calibrated stance disagreement: {stance_disagreement:.3f}; raw-score range retained as a diagnostic: {raw_disagreement:.3f}.",
         f"Calibrated visual evidence score: {average:.3f}; raw model average: {raw_average:.3f}; weakest raw model score: {min_score:.3f}.",
         "Raw detector scores were converted to model-specific stances before voting; values inside a model's abstention band contribute neutral evidence.",
     ]
@@ -1163,6 +1305,19 @@ def model_ensemble_signal(signals: list[DetectorSignal]) -> DetectorSignal:
         confidence=confidence,
         evidence=evidence,
         weight=0.9,
+        details={
+            "aggregation": "reliability-weighted calibrated stances",
+            "raw_score_average": round(raw_average, 4),
+            "raw_score_range": round(raw_disagreement, 4),
+            "calibrated_stance_average": round(average, 4),
+            "calibrated_stance_range": round(stance_disagreement, 4),
+            "ai_votes": ai_votes,
+            "lean_ai_votes": lean_ai_votes,
+            "real_votes": real_votes,
+            "abstain_votes": len(values) - ai_votes - real_votes,
+            "primary_anchored_alignment": aligned_primary_consensus,
+            "policy_note": "Raw outputs from different classifiers are not treated as directly comparable probabilities.",
+        },
     )
 
 
@@ -1206,7 +1361,17 @@ def _model_inference_views(image: Image.Image, profile: dict[str, Any]) -> list[
     recompressed.seek(0)
     jpeg_view = Image.open(recompressed).convert("RGB")
     jpeg_view.load()
-    return [("original", rgb), ("center_crop_92pct", center_crop), ("jpeg_quality_85", jpeg_view)]
+    mirrored = rgb.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+    resized_width = max(64, int(width * 0.75))
+    resized_height = max(64, int(height * 0.75))
+    social_resize = rgb.resize((resized_width, resized_height), Image.Resampling.LANCZOS)
+    return [
+        ("original", rgb),
+        ("center_crop_92pct", center_crop),
+        ("jpeg_quality_85", jpeg_view),
+        ("horizontal_flip", mirrored),
+        ("social_resize_75pct", social_resize),
+    ]
 
 
 def _calibrated_model_stance(signal: DetectorSignal) -> float:
@@ -1290,7 +1455,13 @@ def aggregate_verdict(
         detector for detector in detectors if detector.name.startswith("hf:") and detector.status == "ok" and detector.ai_probability is not None
     ]
     model_values = [float(detector.ai_probability) for detector in model_detectors]
-    model_disagreement = (max(model_values) - min(model_values)) if len(model_values) >= 2 else 0.0
+    calibrated_model_values = [_calibrated_model_stance(detector) for detector in model_detectors]
+    raw_model_score_range = (max(model_values) - min(model_values)) if len(model_values) >= 2 else 0.0
+    model_disagreement = (
+        max(calibrated_model_values) - min(calibrated_model_values)
+        if len(calibrated_model_values) >= 2
+        else 0.0
+    )
     model_ai_votes = sum(detector.label == "model_likely_ai_generated" for detector in model_detectors)
     model_lean_ai_votes = sum(
         float(detector.ai_probability or 0.0)
@@ -1315,7 +1486,8 @@ def aggregate_verdict(
     manipulation_values = [detector.manipulation_probability for detector in detectors if detector.manipulation_probability is not None]
     manipulation_probability = max(manipulation_values) if manipulation_values else forensics["manipulation_score"]
     ai_values = [detector.ai_probability for detector in detectors if detector.status == "ok" and detector.ai_probability is not None]
-    disagreement = max((max(ai_values) - min(ai_values)) if len(ai_values) >= 2 else 0.0, model_disagreement)
+    cross_layer_disagreement = (max(ai_values) - min(ai_values)) if len(ai_values) >= 2 else 0.0
+    disagreement = max(cross_layer_disagreement, model_disagreement)
 
     strong_signals = [
         detector
@@ -1344,7 +1516,7 @@ def aggregate_verdict(
         and model_signal.label == "ensemble_likely_ai_generated"
         and model_lean_ai_votes == len(model_values)
         and model_real_votes == 0
-        and model_disagreement <= 0.42
+        and model_disagreement <= 0.50
         and any(
             _model_profile(detector.name.removeprefix("hf:")).get("expert_group") == "broad_primary"
             and float(detector.ai_probability or 0.0)
@@ -1394,7 +1566,7 @@ def aggregate_verdict(
     )
     uncorroborated_model_evidence = has_model and weak_non_model_artifacts and not non_model_ai_support
     model_uncorroborated = uncorroborated_model_evidence and (
-        model_disagreement >= 0.45
+        (model_disagreement >= 0.50 and not primary_anchored_consensus)
         or (model_signal is not None and model_signal.confidence == "low")
         or len(model_values) < 3
         or model_real_votes > 0
@@ -1490,6 +1662,9 @@ def aggregate_verdict(
         "ai_probability": round(float(ai_probability), 4),
         "manipulation_probability": round(float(manipulation_probability), 4),
         "disagreement": round(float(disagreement), 4),
+        "model_stance_disagreement": round(float(model_disagreement), 4),
+        "raw_model_score_range": round(float(raw_model_score_range), 4),
+        "cross_layer_disagreement": round(float(cross_layer_disagreement), 4),
         "rationale": rationale,
         "score_label": "AI evidence score",
         "score_interpretation": "Evidence strength for triage, not a calibrated probability of truth.",
@@ -1571,9 +1746,11 @@ def build_explainability(
         {
             "name": signal.name,
             "ai_probability": signal.ai_probability,
+            "calibrated_stance_score": round(_calibrated_model_stance(signal), 4),
             "label": signal.label,
             "reliability_weight": signal.weight,
             "evidence": signal.evidence,
+            "details": signal.details,
         }
         for signal in model_signals
     ]
@@ -1596,6 +1773,7 @@ def build_explainability(
         reverse=True,
     )
     model_values = [float(signal.ai_probability) for signal in model_signals if signal.ai_probability is not None]
+    calibrated_model_values = [_calibrated_model_stance(signal) for signal in model_signals]
     model_lean_ai_votes = sum(
         float(signal.ai_probability or 0.0)
         >= float(_model_profile(signal.name.removeprefix("hf:")).get("lean_ai_threshold", 0.6))
@@ -1622,6 +1800,7 @@ def build_explainability(
         "neutral_or_inconclusive": sum(layer["conclusion"] == "neutral_or_inconclusive" for layer in analytical_layers),
     }
     decision_support = _decision_support(verdict, analytical_layers, layer_votes, c2pa, model_scores)
+    decision_attribution = _decision_attribution(verdict, detectors, metadata, c2pa, forensics, analytical_layers)
     expert_opinions = _mixture_expert_opinions(verdict, detectors, metadata, c2pa, forensics)
     regional_map = _regional_evidence_map(analytical_layers)
     return {
@@ -1629,6 +1808,10 @@ def build_explainability(
             f"Final label is {verdict['label']} with {verdict['confidence']} confidence.",
             f"Combined AI evidence score is {verdict['ai_probability']:.0%}; it is not a probability of truth.",
             f"Combined manipulation evidence score is {verdict['manipulation_probability']:.0%}.",
+            (
+                f"Calibrated model-stance disagreement is {float(verdict.get('model_stance_disagreement') or 0):.0%}; "
+                f"raw model score range is {float(verdict.get('raw_model_score_range') or 0):.0%} and is diagnostic only."
+            ),
             (
                 "Layer ledger: "
                 f"{layer_votes['supports_ai_generated']} support AI, "
@@ -1639,6 +1822,16 @@ def build_explainability(
             ),
         ],
         "decision_support": decision_support,
+        "decision_attribution": decision_attribution,
+        "explanation_contract": {
+            "score_semantics": "Evidence strength for cautious triage, not a probability that the image is fake.",
+            "arbiter_inputs": [item["source"] for item in decision_attribution if item["used_by_arbiter"]],
+            "context_only_layers": [
+                layer["name"] for layer in analytical_layers if layer.get("decision_role") == "review_context_only"
+            ],
+            "abstention_rule": "If provenance is absent and calibrated experts conflict, the system returns inconclusive instead of forcing a binary claim.",
+            "human_review_boundary": "The result cannot establish identity, consent, legal truth, or the exact generator from pixels alone.",
+        },
         "expert_opinions": expert_opinions,
         "model_consensus": {
             "enabled_models": len(model_signals),
@@ -1649,7 +1842,12 @@ def build_explainability(
             "average_ai_probability": round(weighted_model_average, 4) if weighted_model_average is not None else None,
             "score_semantics": "calibrated evidence score after model-specific abstention bands",
             "raw_average_ai_probability": round(float(np.mean(model_values)), 4) if model_values else None,
-            "disagreement_range": round(float(max(model_values) - min(model_values)), 4) if len(model_values) >= 2 else 0.0,
+            "calibrated_stance_disagreement": (
+                round(float(max(calibrated_model_values) - min(calibrated_model_values)), 4)
+                if len(calibrated_model_values) >= 2
+                else 0.0
+            ),
+            "raw_score_range": round(float(max(model_values) - min(model_values)), 4) if len(model_values) >= 2 else 0.0,
             "ensemble_label": ensemble.label if ensemble else None,
             "ensemble_confidence": ensemble.confidence if ensemble else None,
             "primary_anchored_alignment": bool(
@@ -1668,12 +1866,12 @@ def build_explainability(
                 "or unusually strong, tightly aligned multi-model consensus with no model voting real/human-origin.",
             ],
             "false_positive_controls": [
-                "Raw model scores are reliability-weighted before aggregation.",
+                "Raw model scores are converted through model-specific AI/real/abstain bands before reliability weighting.",
                 "Uncorroborated model-only suspicion is capped instead of being treated as proof.",
                 "Camera-like JPEG/container evidence lowers the final AI evidence score unless independent AI evidence exists.",
                 "Detector disagreement and real/human votes force abstention.",
                 "A model-only claim needs either unanimous strong votes or broad-primary support aligned with every counter-expert.",
-                "The broad primary must remain stable across the original, center-crop, and controlled JPEG views.",
+                "The broad primary must remain stable across original, center-crop, JPEG, mirror, and social-resize views.",
                 "Low-quality crops, screenshots, and compressed exports cap confidence.",
             ],
             "input_quality": forensics.get("quality", {}),
@@ -1695,6 +1893,135 @@ def build_explainability(
             "Agreement across independent detectors and provenance is stronger than any single model score."
         ),
     }
+
+
+def _decision_attribution(
+    verdict: dict[str, Any],
+    detectors: list[DetectorSignal],
+    metadata: dict[str, Any],
+    c2pa: dict[str, Any],
+    forensics: dict[str, Any],
+    analytical_layers: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    attributions: list[dict[str, Any]] = []
+    metadata_signal = next((detector for detector in detectors if detector.name == "metadata_provenance"), None)
+    ensemble = next((detector for detector in detectors if detector.name == "open_source_model_ensemble"), None)
+    forensic_signal = next((detector for detector in detectors if detector.name == "compression_noise_forensics"), None)
+
+    if metadata_signal:
+        provenance_direction = (
+            "toward_ai_generated"
+            if metadata_signal.label == "likely_ai_generated"
+            else "toward_real_origin"
+            if metadata_signal.label == "camera_metadata_present"
+            else "neutral"
+        )
+        attributions.append(
+            {
+                "source": "Metadata and signed provenance",
+                "role": "primary_evidence",
+                "direction": provenance_direction,
+                "strength": round(abs(float(metadata_signal.ai_probability or 0.5) - 0.5) * 2.0, 4),
+                "used_by_arbiter": True,
+                "finding": metadata_signal.evidence[0] if metadata_signal.evidence else "No provenance finding was available.",
+                "counterfactual": "A verified contradictory C2PA claim or original camera file would materially change this attribution.",
+            }
+        )
+
+    if ensemble:
+        ensemble_direction = (
+            "toward_ai_generated"
+            if ensemble.label == "ensemble_likely_ai_generated"
+            else "toward_real_origin"
+            if ensemble.label == "ensemble_likely_real"
+            else "neutral"
+        )
+        attributions.append(
+            {
+                "source": "Calibrated visual-model ensemble",
+                "role": "primary_evidence",
+                "direction": ensemble_direction,
+                "strength": round(abs(float(ensemble.ai_probability or 0.5) - 0.5) * 2.0, 4),
+                "used_by_arbiter": True,
+                "finding": ensemble.evidence[0] if ensemble.evidence else "No ensemble finding was available.",
+                "counterfactual": "A real-origin model vote, unstable primary views, or missing primary alignment forces abstention.",
+            }
+        )
+
+    if forensic_signal:
+        forensic_direction = (
+            "toward_manipulation"
+            if float(forensic_signal.manipulation_probability or 0.0) >= 0.68
+            else "toward_ai_generated"
+            if float(forensic_signal.ai_probability or 0.5) >= 0.72
+            else "neutral"
+        )
+        forensic_strength = max(
+            abs(float(forensic_signal.ai_probability or 0.5) - 0.5) * 2.0,
+            max(0.0, float(forensic_signal.manipulation_probability or 0.25) - 0.5) * 2.0,
+        )
+        attributions.append(
+            {
+                "source": "Compression and noise forensic composite",
+                "role": "supporting_evidence",
+                "direction": forensic_direction,
+                "strength": round(_clamp(forensic_strength) * 0.45, 4),
+                "used_by_arbiter": True,
+                "finding": forensic_signal.evidence[0] if forensic_signal.evidence else "No forensic finding was available.",
+                "counterfactual": "Original, unrecompressed media can distinguish editing artifacts from platform recompression.",
+            }
+        )
+
+    quality = forensics.get("quality") or {}
+    quality_risk = float(quality.get("risk_score") or 0.0)
+    attributions.append(
+        {
+            "source": "Input-quality confidence guard",
+            "role": "confidence_guard",
+            "direction": "toward_abstention" if quality_risk >= 0.45 else "neutral",
+            "strength": round(quality_risk, 4),
+            "used_by_arbiter": True,
+            "finding": (quality.get("evidence") or ["No major input-quality risk was detected."])[0],
+            "counterfactual": "A larger original file with fewer exports or screenshots would reduce this confidence penalty.",
+        }
+    )
+
+    try:
+        camera_prior = _camera_like_real_prior(metadata, forensics)
+    except (KeyError, TypeError, ValueError):
+        camera_prior = False
+    if camera_prior:
+        attributions.append(
+            {
+                "source": "Camera-like real-photo guard",
+                "role": "false_positive_guard",
+                "direction": "toward_real_origin",
+                "strength": 0.7,
+                "used_by_arbiter": True,
+                "finding": "Camera-compatible container and natural residual evidence triggered the real-photo guard.",
+                "counterfactual": "Verified synthetic provenance or strong independent forensic support would override this guard.",
+            }
+        )
+
+    context_layers = sorted(
+        [layer for layer in analytical_layers if layer.get("decision_role") == "review_context_only"],
+        key=lambda layer: float(layer.get("influence") or 0.0),
+        reverse=True,
+    )
+    if context_layers:
+        attributions.append(
+            {
+                "source": "Diagnostic image decompositions",
+                "role": "review_context_only",
+                "direction": "not_used_for_classification",
+                "strength": 0.0,
+                "used_by_arbiter": False,
+                "finding": f"{len(context_layers)} luminance, color, edge, frequency, and regional layers are exposed for reviewer context.",
+                "counterfactual": "These layers require independent corroboration before they can affect a verdict.",
+            }
+        )
+
+    return attributions
 
 
 def _decision_support(

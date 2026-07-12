@@ -52,8 +52,8 @@ const architectureStages = [
   },
   {
     title: 'Calibrated MoE',
-    detail: 'Community Forensics runs across three image views, then two independent models provide counter-opinions.',
-    checks: ['Model-specific thresholds', 'Three-view stability check', 'Raw logits never equal truth'],
+    detail: 'Community Forensics runs across five benign transforms, then two independent models provide counter-opinions.',
+    checks: ['Model-specific thresholds', 'Five-view stability check', 'Raw logits never equal truth'],
     icon: BrainCircuit,
   },
   {
@@ -73,8 +73,8 @@ const architectureStages = [
 const expertPanels = [
   {
     title: 'Broad Primary',
-    detail: 'Community Forensics checks the original, a 92% center crop, and a controlled JPEG view.',
-    signals: ['Three-view median', 'Transform stability', 'Broad generator coverage'],
+    detail: 'Community Forensics checks original, crop, JPEG, mirrored, and social-resize views before its stance is trusted.',
+    signals: ['Five-view median', 'MAD/IQR stability', 'Broad generator coverage'],
     guardrail: 'A stable primary score still cannot decide the verdict alone.',
   },
   {
@@ -100,7 +100,7 @@ const expertPanels = [
 const moeExperts = [
   {
     title: 'Community Forensics',
-    detail: 'Broad ViT primary trained on a highly diverse synthetic-image corpus and evaluated across three views.',
+    detail: 'Broad ViT primary trained on a highly diverse synthetic-image corpus and evaluated across five benign transforms.',
     output: 'Primary stance + stability',
     icon: Cpu,
   },
@@ -131,7 +131,7 @@ const moeExperts = [
 ];
 
 const moeRules = [
-  'The broad primary must remain stable across original, crop, and JPEG views.',
+  'The broad primary must remain stable across original, crop, JPEG, mirror, and social-resize views.',
   'Each raw score enters a model-specific AI, real, or abstention band.',
   'Primary-anchored model-only consensus requires every counter-expert to lean AI.',
   'A real/human vote, poor input quality, or disagreement lowers the evidence score.',
@@ -170,14 +170,14 @@ const reportFeatures = [
   },
   {
     title: 'Evidence Ledger',
-    detail: 'Layer-by-layer metadata, provenance, forensic, model, and uncertainty findings.',
-    includes: ['Layer conclusion', 'AI/manipulation signal', 'Method and limitations'],
+    detail: 'Eleven layers expose provenance, model robustness, forensic residuals, regional differences, and uncertainty.',
+    includes: ['Decision role and reliability', 'Direction and influence', 'Counterfactual and limitations'],
     icon: Layers3,
   },
   {
     title: 'Model Arbitration',
-    detail: 'Primary and counter-model scores, transform stability, calibrated stances, disagreement, and arbiter policy.',
-    includes: ['Raw and calibrated scores', 'Primary-anchored alignment', 'Abstention rationale'],
+    detail: 'Primary and counter-model scores, five-view stability, calibrated stances, attribution, and arbiter policy.',
+    includes: ['Raw versus calibrated scores', 'Five-view MAD/IQR stability', 'Abstention rationale'],
     icon: BrainCircuit,
   },
   {
@@ -195,9 +195,9 @@ const heroHighlights = [
 ];
 
 const methodFacts = [
-  ['3 views', 'Primary stability check', Cpu],
+  ['5 views', 'Primary stability check', Cpu],
   ['3 models', 'One primary, two counter-experts', BrainCircuit],
-  ['10 layers', 'Provenance, pixels, residuals, regions', Layers3],
+  ['11 layers', 'Provenance, transforms, residuals, regions', Layers3],
   ['15 min', 'Raw-media deletion window', Lock],
   ['PDF + JSON', 'Human and machine-readable evidence', FileText],
 ];
@@ -462,6 +462,7 @@ function App() {
                 </div>
 
                 <DecisionSummary explainability={result.explainability} />
+                <DecisionAttribution attribution={result.explainability?.decision_attribution || []} />
                 <ExpertOpinions opinions={result.explainability?.expert_opinions || []} />
                 <EvidenceLayers layers={result.layers} />
                 <Explainability explainability={result.explainability} />
@@ -584,7 +585,7 @@ function LandingPage() {
           <p className="eyebrow">Calibrated mixture of experts</p>
           <h2>Raw model outputs are converted into stances before they can influence a person.</h2>
           <p>
-            The primary detector checks three transformed views. Two counter-models challenge it, while provenance
+            The primary detector checks five transformed views. Two counter-models challenge it, while provenance
             and forensic experts contribute independent evidence. The arbiter can still abstain.
           </p>
         </div>
@@ -690,7 +691,7 @@ function MoEFlowDiagram() {
           <span>02</span>
           <Gauge size={24} />
           <h3>Multi-view Gate</h3>
-          <p>Create original, 92% center-crop, and JPEG-85 views for the broad primary stability check.</p>
+          <p>Create original, 92% center-crop, JPEG-85, mirrored, and social-resize views for the broad primary stability check.</p>
         </div>
 
         <section className="moe-expert-panel" aria-label="Expert detector panel">
@@ -758,7 +759,7 @@ function ArchitectureFlowchart() {
       ['C2PA', 'Content credentials and signed generation claims', BadgeCheck],
     ]],
     ['Visual-model lane', [
-      ['Broad Primary', 'Community Forensics across three stable views', Cpu],
+      ['Broad Primary', 'Community Forensics across five stable transforms', Cpu],
       ['Counter-Models', 'Ateeqq plus an independent distilled classifier', BrainCircuit],
     ]],
     ['Forensic lane', [
@@ -776,30 +777,51 @@ function ArchitectureFlowchart() {
 
   return (
     <div className="architecture-map" aria-label="Deepfake analysis architecture flow">
+      <div className="diagram-livebar">
+        <div><span /> Evidence packet journey</div>
+        <p>Validation, parallel expert analysis, calibrated convergence, report</p>
+      </div>
       <div className="architecture-flow-grid">
         <span className="flow-packet packet-one" />
         <span className="flow-packet packet-two" />
-        {flowSteps.map(([index, title, detail, icon]) => {
+        <span className="flow-packet packet-three" />
+        {flowSteps.map(([index, title, detail, icon], stepIndex) => {
           const StepIcon = icon;
           return (
-            <article className={`flow-step ${title === 'Evidence Bus' ? 'hub-step' : ''}`} key={title}>
+            <article
+              className={`flow-step ${title === 'Evidence Bus' ? 'hub-step' : ''}`}
+              style={{ '--step-index': stepIndex }}
+              key={title}
+            >
               <span className="node-index">{index}</span>
               <div className="node-orb"><StepIcon size={24} /></div>
               <h3>{title}</h3>
               <p>{detail}</p>
+              <span className="step-state">
+                {stepIndex === 0 ? 'validated' : stepIndex === 1 ? 'forked' : stepIndex === 2 ? 'analyzed' : stepIndex === 3 ? 'calibrated' : 'documented'}
+              </span>
             </article>
           );
         })}
       </div>
 
+      <div className="evidence-convergence">
+        <span>Parallel evidence fan-out</span>
+        <i />
+        <strong>Independent signals reconverge at the arbiter</strong>
+      </div>
+
       <div className="evidence-lanes">
-        {laneGroups.map(([lane, items]) => (
-          <section className="layer-cluster" key={lane}>
-            <span className="cluster-label">{lane}</span>
-            {items.map(([title, detail, icon]) => {
+        {laneGroups.map(([lane, items], laneIndex) => (
+          <section className="layer-cluster" style={{ '--lane-index': laneIndex }} key={lane}>
+            <div className="lane-heading">
+              <span className="cluster-label">{lane}</span>
+              <em>independent</em>
+            </div>
+            {items.map(([title, detail, icon], itemIndex) => {
               const LayerIcon = icon;
               return (
-                <article className="layer-chip" key={title}>
+                <article className="layer-chip" style={{ '--item-index': itemIndex }} key={title}>
                   <LayerIcon size={18} />
                   <div>
                     <strong>{title}</strong>
@@ -812,6 +834,7 @@ function ArchitectureFlowchart() {
         ))}
 
         <div className="decision-stack">
+          <strong>Safe outcome set</strong>
           <span>likely real</span>
           <span>likely AI generated</span>
           <span>likely manipulated</span>
@@ -845,11 +868,11 @@ function ReportPreviewScene() {
             <span />
           </div>
           <div className="report-layer-list">
-            {['Primary-anchored alignment', 'Metadata and C2PA', 'Cross-layer disagreement', 'Regional anomaly map'].map((item, index) => (
+            {['Five-view model stability', 'Calibrated expert stances', 'Arbiter decision attribution', 'Diagnostic regional map'].map((item, index) => (
               <div className="report-layer-row" style={{ '--index': index }} key={item}>
                 <i />
                 <span>{item}</span>
-                <strong>{index === 0 ? 'supports AI' : index === 1 ? 'neutral' : 'weak signal'}</strong>
+                <strong>{index === 0 ? 'stable' : index === 1 ? 'aligned' : index === 2 ? 'used' : 'context'}</strong>
               </div>
             ))}
           </div>
@@ -866,10 +889,10 @@ function ReportPreviewScene() {
 
 function ArchitectureScene() {
   const nodes = [
-    ['Primary', '3-view stability', Cpu],
+    ['Primary', '5-view stability', Cpu],
     ['Counters', '2 independent votes', BrainCircuit],
     ['Provenance', 'EXIF/XMP + C2PA', Database],
-    ['Forensics', '10 evidence layers', Layers3],
+    ['Forensics', '11 evidence layers', Layers3],
     ['Arbiter', 'Abstention gate', Gauge],
     ['Report', 'PDF + JSON ledger', FileText],
   ];
@@ -917,9 +940,9 @@ function ArchitectureScene() {
         </div>
       </div>
       <div className="telemetry-strip">
-        <span><Cpu size={16} /> 3 views</span>
+        <span><Cpu size={16} /> 5 views</span>
         <span><BrainCircuit size={16} /> 3 models</span>
-        <span><Layers3 size={16} /> 10 layers</span>
+        <span><Layers3 size={16} /> 11 layers</span>
         <span><Lock size={16} /> 15 min TTL</span>
         <span><FileText size={16} /> PDF + JSON</span>
       </div>
@@ -1064,9 +1087,23 @@ function Explainability({ explainability }) {
           <li>Primary-anchored alignment: {consensus.primary_anchored_alignment ? 'yes' : 'no'}.</li>
           <li>Calibrated model evidence score: {Math.round((consensus.average_ai_probability || 0) * 100)}%.</li>
           <li>Raw average model output: {Math.round((consensus.raw_average_ai_probability || 0) * 100)}%.</li>
-          <li>Disagreement range: {Math.round((consensus.disagreement_range || 0) * 100)}%.</li>
+          <li>Calibrated stance disagreement: {Math.round((consensus.calibrated_stance_disagreement || 0) * 100)}%.</li>
+          <li>Raw score range: {Math.round((consensus.raw_score_range || 0) * 100)}% (diagnostic only).</li>
           <li>Scores inside each model&apos;s abstention band contribute neutral evidence.</li>
         </ul>
+        {!!consensus.models?.length && (
+          <div className="model-audit-list">
+            {consensus.models.map((model) => (
+              <div key={model.name}>
+                <strong>{model.name.replace('hf:', '')}</strong>
+                <span>{model.label.replaceAll('_', ' ')}</span>
+                <small>
+                  {model.details?.view_count || 1} view{(model.details?.view_count || 1) === 1 ? '' : 's'} · calibrated stance {Math.round((model.calibrated_stance_score || 0.5) * 100)}%
+                </small>
+              </div>
+            ))}
+          </div>
+        )}
       </article>
       {!!standard.policy && (
         <article className="layer">
@@ -1094,6 +1131,37 @@ function Explainability({ explainability }) {
           ))}
         </ul>
       </article>
+    </div>
+  );
+}
+
+function DecisionAttribution({ attribution }) {
+  if (!attribution.length) return null;
+  return (
+    <div className="section-list attribution-section">
+      <h3>Why The Arbiter Reached This Verdict</h3>
+      <p className="section-intro">
+        These are the signals that influenced the decision. Diagnostic-only image layers are identified separately so anomalies are not mistaken for proof.
+      </p>
+      <div className="attribution-list">
+        {attribution.map((item) => (
+          <article className={`attribution-row ${item.used_by_arbiter ? 'used' : 'context'}`} key={item.source}>
+            <div className="attribution-head">
+              <div>
+                <strong>{item.source}</strong>
+                <span>{item.role.replaceAll('_', ' ')}</span>
+              </div>
+              <em>{item.used_by_arbiter ? 'used by arbiter' : 'review context'}</em>
+            </div>
+            <div className="attribution-meter" aria-label={`${Math.round((item.strength || 0) * 100)} percent influence`}>
+              <span style={{ width: `${Math.round((item.strength || 0) * 100)}%` }} />
+            </div>
+            <p>{item.finding}</p>
+            <small>{item.direction.replaceAll('_', ' ')} · {Math.round((item.strength || 0) * 100)}% relative influence</small>
+            <p className="counterfactual"><strong>What would change it:</strong> {item.counterfactual}</p>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1145,6 +1213,12 @@ function AnalyticalLayers({ layers }) {
             <span>{layer.conclusion}</span>
           </div>
           <p className="layer-method">{layer.method}</p>
+          <div className="layer-audit-row">
+            <span>{(layer.decision_role || 'review_context_only').replaceAll('_', ' ')}</span>
+            <span>{layer.reliability || layer.confidence || 'none'} reliability</span>
+            <span>{layer.used_by_arbiter ? 'used by arbiter' : 'review context only'}</span>
+            <span>{Math.round((layer.influence || 0) * 100)}% influence</span>
+          </div>
           <div className="mini-meters">
             <Metric label="AI signal" value={layer.ai_signal || 0} />
             <Metric label="Manipulation signal" value={layer.manipulation_signal || 0} />
@@ -1154,6 +1228,9 @@ function AnalyticalLayers({ layers }) {
               <li key={finding}>{finding}</li>
             ))}
           </ul>
+          {layer.counterfactual && (
+            <p className="counterfactual"><strong>What would change it:</strong> {layer.counterfactual}</p>
+          )}
         </article>
       ))}
     </div>

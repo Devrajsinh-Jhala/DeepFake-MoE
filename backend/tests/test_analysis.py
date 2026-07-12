@@ -6,6 +6,7 @@ from PIL import Image, PngImagePlugin
 from app.analysis import (
     _huggingface_detector_for_model,
     _map_classifier_outputs_to_ai_probability,
+    _model_inference_views,
     analyze_image_bytes,
     aggregate_verdict,
     DetectorSignal,
@@ -48,6 +49,7 @@ def test_analysis_includes_explainable_analytical_layers() -> None:
     assert {layer["id"] for layer in layers} >= {
         "source_provenance",
         "visual_model_consensus",
+        "model_transform_robustness",
         "luminance",
         "chroma",
         "edge_geometry",
@@ -63,7 +65,16 @@ def test_analysis_includes_explainable_analytical_layers() -> None:
         assert 0 <= layer["ai_signal"] <= 1
         assert 0 <= layer["manipulation_signal"] <= 1
         assert layer["evidence"]
+        assert layer["decision_role"] in {
+            "primary_evidence",
+            "guard_or_supporting_evidence",
+            "review_context_only",
+        }
+        assert 0 <= layer["influence"] <= 1
+        assert layer["counterfactual"]
     assert result["explainability"]["layer_ledger"]["layers"]
+    assert result["explainability"]["decision_attribution"]
+    assert result["explainability"]["explanation_contract"]["score_semantics"]
     assert result["explainability"]["decision_support"]["primary_drivers"]
     assert result["explainability"]["regional_evidence_map"]["grid"] == {"rows": 4, "cols": 4}
 
@@ -127,6 +138,20 @@ def test_model_label_mapping_supports_explicit_numeric_labels() -> None:
         [{"label": "LABEL_1", "score": 0.83}, {"label": "LABEL_0", "score": 0.17}],
         profile,
     ) == pytest.approx(0.83)
+
+
+def test_broad_primary_uses_five_robustness_views() -> None:
+    image = Image.new("RGB", (320, 240), (80, 110, 140))
+    views = _model_inference_views(image, {"multi_view": True})
+
+    assert [name for name, _ in views] == [
+        "original",
+        "center_crop_92pct",
+        "jpeg_quality_85",
+        "horizontal_flip",
+        "social_resize_75pct",
+    ]
+    assert views[-1][1].size == (240, 180)
 
 
 def test_model_ensemble_signal_summarizes_votes() -> None:
